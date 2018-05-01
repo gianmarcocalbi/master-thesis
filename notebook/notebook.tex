@@ -141,7 +141,7 @@
     \def\gt{>}
     \def\lt{<}
     % Document parameters
-    \title{Untitled}
+    \title{second-conf-call}
     
     
     
@@ -293,6 +293,321 @@ report}\label{second-conf-call-fast-report}
 2018-04-27 09:52:28.261868
 
     \end{Verbatim}
+
+    \emph{For this second report I am experimenting a new way to fastly
+deploy updates about my project: \textbf{Jupyter notebook}. In this
+stage of the project, I'd like to share more code snippets than I would
+in the final thesis, hence markdown support and live execution of code
+snippets turned out to be very useful for such purpose. Actually the two
+main reason why I decide to move from raw LaTeX to here are: (1) Jupyter
+does it faster, (2) it convert everything to LaTeX (I won't be required
+to make any effort to include everything from here to my LaTeX thesis
+document). Whether, for any reason, this method will turn out to be
+ineffective or time-expensive I will drop it out.}
+
+\subsection{Change log summary}\label{change-log-summary}
+
+\subsubsection{Training set generator
+function}\label{training-set-generator-function}
+
+Now all samples components domains are centered at the same value \(c\).
+Such domains are determined as follows.
+
+Is defined \(K = \{k_1,...k_m\}\) where \(k_i\) is the domain radius of
+variable \(x_i\). Let \(x=(x_1,...,x_m) \in X\) be a sample of the
+training set, then the domain of \(x_i\) is \(D(x_i) = [c-k_i, c+k_i]\).
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{def}\NormalTok{ sample_from_function(n_samples, n_features, func, domain_radius}\OperatorTok{=}\FloatTok{0.5}\NormalTok{, domain_center}\OperatorTok{=}\FloatTok{0.5}\NormalTok{,error_mean}\OperatorTok{=}\DecValTok{0}\NormalTok{, error_std_dev}\OperatorTok{=}\DecValTok{1}\NormalTok{):}
+\NormalTok{    X }\OperatorTok{=}\NormalTok{ []}
+\NormalTok{    y }\OperatorTok{=}\NormalTok{ np.zeros(n_samples)}
+\NormalTok{    w }\OperatorTok{=}\NormalTok{ np.ones(n_features)}
+\NormalTok{    K }\OperatorTok{=}\NormalTok{ np.random.uniform(domain_center }\OperatorTok{-}\NormalTok{ domain_radius, domain_center }\OperatorTok{+}\NormalTok{ domain_radius, n_features)}
+
+    \ControlFlowTok{for}\NormalTok{ i }\KeywordTok{in} \BuiltInTok{range}\NormalTok{(n_samples):}
+\NormalTok{        x }\OperatorTok{=}\NormalTok{ np.zeros(n_features)}
+        \ControlFlowTok{for}\NormalTok{ j }\KeywordTok{in} \BuiltInTok{range}\NormalTok{(n_features):}
+\NormalTok{            x[j] }\OperatorTok{=}\NormalTok{ np.random.uniform(}\OperatorTok{-}\NormalTok{K[j] }\OperatorTok{+}\NormalTok{ domain_radius, K[j] }\OperatorTok{+}\NormalTok{ domain_radius)}
+\NormalTok{        X.append(x)}
+\NormalTok{        y[i] }\OperatorTok{=}\NormalTok{ func(x, w) }\OperatorTok{+}\NormalTok{ np.random.normal(error_mean, error_std_dev)}
+
+\ControlFlowTok{return}\NormalTok{ np.array(X), y}
+\end{Highlighting}
+\end{Shaded}
+
+    \textbf{Example}. Detailed execution of \texttt{sample\_from\_function}
+with the following parameters: - \texttt{n\_samples\ =\ 8} : amount of
+samples in the training set; - \texttt{n\_features\ =\ 4} : number of
+features, e.g. size of each array sample; - \texttt{func} : classic
+linear function \(f(\vec{x},\vec{w})=\sum_{j=1}^{m} x_j w_j\) where
+\(m\) is the size of \(x\) (and \(w\)), so, for instance,
+\(f((2,3),(4,1))=2*4+3*1=11\); - \texttt{domain\_radius\ =\ 5}; -
+\texttt{domain\_center\ =\ 0}; - \texttt{error\_mean\ =\ 0}; -
+\texttt{error\_std\_dev\ =\ 1}: the error (noise) follows
+
+    \begin{Verbatim}[commandchars=\\\{\}]
+{\color{incolor}In [{\color{incolor}20}]:} \PY{k+kn}{import} \PY{n+nn}{numpy} \PY{k}{as} \PY{n+nn}{np}
+         \PY{k+kn}{import} \PY{n+nn}{pprint}
+         \PY{n}{n\PYZus{}samples} \PY{o}{=} \PY{l+m+mi}{8}
+         \PY{n}{n\PYZus{}features} \PY{o}{=} \PY{l+m+mi}{4}
+         \PY{n}{func} \PY{o}{=} \PY{k}{lambda} \PY{n}{\PYZus{}X}\PY{p}{,}\PY{n}{\PYZus{}w} \PY{p}{:} \PY{n}{\PYZus{}X}\PY{o}{.}\PY{n}{dot}\PY{p}{(}\PY{n}{\PYZus{}w}\PY{p}{)}
+         \PY{n}{domain\PYZus{}center} \PY{o}{=} \PY{l+m+mi}{0}
+         \PY{n}{domain\PYZus{}radius} \PY{o}{=} \PY{l+m+mi}{5}
+         \PY{n}{error\PYZus{}mean} \PY{o}{=} \PY{l+m+mi}{0}
+         \PY{n}{error\PYZus{}std\PYZus{}dev} \PY{o}{=} \PY{l+m+mi}{1}
+         \PY{n}{X} \PY{o}{=} \PY{p}{[}\PY{p}{]}
+         \PY{n}{y} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{zeros}\PY{p}{(}\PY{n}{n\PYZus{}samples}\PY{p}{)}
+         \PY{n}{w} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{ones}\PY{p}{(}\PY{n}{n\PYZus{}features}\PY{p}{)}
+         \PY{n}{K} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{random}\PY{o}{.}\PY{n}{uniform}\PY{p}{(}\PY{n}{domain\PYZus{}center} \PY{o}{\PYZhy{}} \PY{n}{domain\PYZus{}radius}\PY{p}{,} \PY{n}{domain\PYZus{}center} \PY{o}{+} \PY{n}{domain\PYZus{}radius}\PY{p}{,} \PY{n}{n\PYZus{}features}\PY{p}{)}
+\end{Verbatim}
+
+
+    \(K = \{k_1,...k_m\}\) where \(k_i\) is the domain radius of variable
+\(x_i\), so the domain of \(x_i\) will be \(D(x_i) = [c-k_i, c+k_i]\)
+where \(c\) is the center of the domain (\texttt{domain\_center}); \(c\)
+is the same for all \(x_i\).
+
+    \begin{Verbatim}[commandchars=\\\{\}]
+{\color{incolor}In [{\color{incolor}19}]:} \PY{n+nb}{print}\PY{p}{(}\PY{n}{K}\PY{p}{)}
+\end{Verbatim}
+
+
+    \begin{Verbatim}[commandchars=\\\{\}]
+[1.32375564 0.71056962 2.54217545 1.6100447 ]
+
+    \end{Verbatim}
+
+    \begin{Verbatim}[commandchars=\\\{\}]
+{\color{incolor}In [{\color{incolor}18}]:} \PY{k}{for} \PY{n}{i} \PY{o+ow}{in} \PY{n+nb}{range}\PY{p}{(}\PY{n}{n\PYZus{}samples}\PY{p}{)}\PY{p}{:}
+             \PY{n}{x} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{zeros}\PY{p}{(}\PY{n}{n\PYZus{}features}\PY{p}{)}
+             \PY{k}{for} \PY{n}{j} \PY{o+ow}{in} \PY{n+nb}{range}\PY{p}{(}\PY{n}{n\PYZus{}features}\PY{p}{)}\PY{p}{:}
+                 \PY{n}{x}\PY{p}{[}\PY{n}{j}\PY{p}{]} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{random}\PY{o}{.}\PY{n}{uniform}\PY{p}{(}\PY{o}{\PYZhy{}}\PY{n}{K}\PY{p}{[}\PY{n}{j}\PY{p}{]} \PY{o}{+} \PY{n}{domain\PYZus{}radius}\PY{p}{,} \PY{n}{K}\PY{p}{[}\PY{n}{j}\PY{p}{]} \PY{o}{+} \PY{n}{domain\PYZus{}radius}\PY{p}{)}
+             \PY{n}{X}\PY{o}{.}\PY{n}{append}\PY{p}{(}\PY{n}{x}\PY{p}{)}
+             \PY{n}{y}\PY{p}{[}\PY{n}{i}\PY{p}{]} \PY{o}{=} \PY{n}{func}\PY{p}{(}\PY{n}{x}\PY{p}{,} \PY{n}{w}\PY{p}{)} \PY{o}{+} \PY{n}{np}\PY{o}{.}\PY{n}{random}\PY{o}{.}\PY{n}{normal}\PY{p}{(}\PY{n}{error\PYZus{}mean}\PY{p}{,} \PY{n}{error\PYZus{}std\PYZus{}dev}\PY{p}{)}
+         \PY{n+nb}{print}\PY{p}{(}\PY{n}{pprint}\PY{o}{.}\PY{n}{PrettyPrinter}\PY{p}{(}\PY{n}{indent}\PY{o}{=}\PY{l+m+mi}{4}\PY{p}{)}\PY{o}{.}\PY{n}{pformat}\PY{p}{(}\PY{n}{X}\PY{p}{)}\PY{p}{)}
+         \PY{n+nb}{print}\PY{p}{(}\PY{n}{pprint}\PY{o}{.}\PY{n}{PrettyPrinter}\PY{p}{(}\PY{n}{indent}\PY{o}{=}\PY{l+m+mi}{4}\PY{p}{)}\PY{o}{.}\PY{n}{pformat}\PY{p}{(}\PY{n}{y}\PY{p}{)}\PY{p}{)}
+\end{Verbatim}
+
+
+    \begin{Verbatim}[commandchars=\\\{\}]
+[   array([6.02188807, 5.67014992, 4.96419302, 5.14972292]),
+    array([5.9642668 , 4.75911729, 3.1911183 , 6.48086813]),
+    array([3.77524004, 5.69812223, 3.93359248, 4.15090944]),
+    array([5.89155598, 4.33238006, 4.67047585, 6.58797714]),
+    array([5.78911644, 4.47464001, 6.09150392, 4.30422703]),
+    array([6.09066085, 5.44278406, 7.06243236, 5.28890016]),
+    array([5.48128054, 4.92461966, 6.29826249, 4.08255381]),
+    array([4.33756388, 5.65386185, 6.73384508, 6.09020554])]
+array([23.09383521, 20.77253317, 17.89046891, 21.22414156, 20.48504975,
+       24.51765509, 19.07431732, 23.32166701])
+
+    \end{Verbatim}
+
+    \subsubsection{New metric Real Mean Squared Error
+(RMSE)}\label{new-metric-real-mean-squared-error-rmse}
+
+The training set is in the form of a pair (X,y) where \(y_i\) is the
+value the target function is supposed to yield for the input \(x_i\),
+actually, whether a noise exists in the training set, then \(y_i\)
+differs from the real value \(\tilde{y}_i\) by a gap that, in our case,
+is normally distributed (with mean = \texttt{error\_mean} and standard
+deviation = \texttt{error\_std\_dev}). Whereas the training set is
+generated with fully control over all parameters, then we know either
+the perturbed value \(y_i\) either the real value
+\(\tilde{y}_i=\mathbb{1} x_i=\sum_{j=1}^{m}x_{ij}\), so we have an
+additional information to take into account in order to study the
+behaviour of different models.
+
+While the mean squared error
+\[MSE = \frac{1}{N} \sum_{i=1}^{n} (y_i - \hat{y}_i) (\hat{y}_i)'\]
+regards \(y_i\), the real MSE concerns \(\tilde{y}_i\), hence it's
+defined as
+\[RMSE = \frac{1}{N} \sum_{i=1}^{n} (\tilde{y}_i - \hat{y}_i) (\hat{y}_i)'.\]
+
+By comparing these two metrics one can understand whether and how much
+the prediction model suffers from noise fitting, e.g. when the model
+adapts itself much more on the noise rather than on the provided target
+function value.
+
+Obviously, noiseless training sets lead the MSE to be equal to the RMSE.
+
+    \subsubsection{Computing the error over the whole training
+set}\label{computing-the-error-over-the-whole-training-set}
+
+After each iteration each node computes a set of metrics taking into
+account its local model and knowledge, so each node keeps track of the
+history of its weight vector, MAE (mean absolute error), RMAE (to be
+implemented yet), MSE, RMSE.
+
+Previously I computed the error as the mean of the MSE of each node. A
+way that, at first glance, could seem to be reasonable, but, actually,
+it is not: such MSE is not computed with one weight vector over the
+entire training set, indeed if someone asked for the weight vector which
+had produced such result, then we haven't a value to provide they with.
+That's why the correct way to compute the global metrics is to retrieve
+from each node \(k\) its local model \(\vec{w}_{k}\), compute
+\(\vec{w} = \frac{1}{K}\sum_{k=1}^{K}\vec{w}_k\) and then computes
+metrics taking into account \(\vec{w}\) along with the whole training
+set.
+
+    \subsubsection{Test description}\label{test-description}
+
+Since there are several parameters to set up in order to run a test, I
+have excluded to pass them from the command line (by running the program
+in a way like \texttt{\$\ python\ main.py\ {[}parameters{]}}), instead
+they're are set directly inside the script \texttt{main.py}. Leave aside
+for a while the system and training task setup, there are many other
+settings which ensure control over the test execution and outputs.
+Without deepening their implementation, when a new test is run, the
+simulator creates a new folder \texttt{/\$TEST\_NAME} in
+\texttt{/test\_log} that contains: - a \texttt{/plot} folder with all
+plots images; - all global logs of the simulation for each topology; -
+the descriptor file that reports the detailed parameters values used for
+the test; - a serialization of the setup that can be used to run again
+the same simulation.
+
+\textbf{Example}.
+
+\begin{verbatim}
+./test_log
+└── /$TEST_NAME
+    ├── /plot
+    │   ├── iter_time.png
+    │   ├── mse_iter.png
+    │   ├── mse_time.png
+    │   ├── real-mse_iter.png
+    │   └── real-mse_time.png
+    ├── clique_global_mean_squared_error_log
+    ├── clique_global_real_mean_squared_error_log
+    ├── clique_iterations_time_log
+    ├── cycle_global_mean_squared_error_log
+    ├── cycle_global_real_mean_squared_error_log
+    ├── cycle_iterations_time_log
+    ├── diagonal_global_mean_squared_error_log
+    ├── diagonal_global_real_mean_squared_error_log
+    ├── diagonal_iterations_time_log
+    ├── diam-expander_global_mean_squared_error_log
+    ├── diam-expander_global_real_mean_squared_error_log
+    ├── diam-expander_iterations_time_log
+    ├── root-expander_global_mean_squared_error_log
+    ├── root-expander_global_real_mean_squared_error_log
+    ├── root-expander_iterations_time_log
+    ├── .descriptor.txt
+    └── .setup.pkl
+\end{verbatim}
+
+\paragraph{Test descriptor}\label{test-descriptor}
+
+Below is how the descriptor appears, it doesn't matter if some or most
+of them could be not immediately understandable, simply take a fast look
+at this code snippet to realize how many parameters the system let us
+customize.
+
+\begin{verbatim}
+>>> Test Descriptor File
+Title: test
+Date: 2018-04-26 11:28:39.116108
+Summary: -
+
+### BEGIN SETUP ###
+n = 10
+seed = 1524734919
+graphs = {
+    'clique': np.array([
+        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
+        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
+        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
+        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
+        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
+        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
+        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
+        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
+        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
+        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.]]),
+    'cycle': np.array([
+        [1., 1., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 1., 1., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 1., 1., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 1., 1., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 1., 1., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 1., 1., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 1., 1., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 1., 1., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 1., 1.],
+        [1., 0., 0., 0., 0., 0., 0., 0., 0., 1.]]),
+    'diagonal': np.array([
+        [1., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 1., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 1., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 1., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 1., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 1., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 1., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 1., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 1., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 1.]]),
+    'diam-expander': np.array([
+        [1., 1., 0., 0., 0., 1., 0., 0., 0., 1.],
+        [1., 1., 1., 0., 0., 0., 1., 0., 0., 0.],
+        [0., 1., 1., 1., 0., 0., 0., 1., 0., 0.],
+        [0., 0., 1., 1., 1., 0., 0., 0., 1., 0.],
+        [0., 0., 0., 1., 1., 1., 0., 0., 0., 1.],
+        [1., 0., 0., 0., 1., 1., 1., 0., 0., 0.],
+        [0., 1., 0., 0., 0., 1., 1., 1., 0., 0.],
+        [0., 0., 1., 0., 0., 0., 1., 1., 1., 0.],
+        [0., 0., 0., 1., 0., 0., 0., 1., 1., 1.],
+        [1., 0., 0., 0., 1., 0., 0., 0., 1., 1.]]),
+    'root-expander': np.array([
+        [1., 1., 0., 1., 0., 0., 0., 0., 0., 0.],
+        [0., 1., 1., 0., 1., 0., 0., 0., 0., 0.],
+        [0., 0., 1., 1., 0., 1., 0., 0., 0., 0.],
+        [0., 0., 0., 1., 1., 0., 1., 0., 0., 0.],
+        [0., 0., 0., 0., 1., 1., 0., 1., 0., 0.],
+        [0., 0., 0., 0., 0., 1., 1., 0., 1., 0.],
+        [0., 0., 0., 0., 0., 0., 1., 1., 0., 1.],
+        [1., 0., 0., 0., 0., 0., 0., 1., 1., 0.],
+        [0., 1., 0., 0., 0., 0., 0., 0., 1., 1.],
+        [1., 0., 1., 0., 0., 0., 0., 0., 0., 1.]]),
+    'star': np.array([
+        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
+        [1., 1., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [1., 0., 1., 0., 0., 0., 0., 0., 0., 0.],
+        [1., 0., 0., 1., 0., 0., 0., 0., 0., 0.],
+        [1., 0., 0., 0., 1., 0., 0., 0., 0., 0.],
+        [1., 0., 0., 0., 0., 1., 0., 0., 0., 0.],
+        [1., 0., 0., 0., 0., 0., 1., 0., 0., 0.],
+        [1., 0., 0., 0., 0., 0., 0., 1., 0., 0.],
+        [1., 0., 0., 0., 0., 0., 0., 0., 1., 0.],
+        [1., 0., 0., 0., 0., 0., 0., 0., 0., 1.]]
+    )}
+
+# TRAINING SET SETUP
+n_samples = 100000
+n_features = 100
+yhat = <class 'src.mltoolbox.LinearYHatFunction'>
+domain_radius = 5
+domain_center = 0
+error_mean = 0
+error_std_dev = 0
+
+# CLUSTER SETUP
+sample_function = <function LinearYHatFunction.f at 0x7f13fa4d00d0>
+max_iter = None
+max_time = 100000
+method = stochastic
+batch_size = 20
+activation_func = None
+loss = <class 'src.mltoolbox.SquaredLossFunction'>
+penalty = l2
+epsilon = 0.01
+alpha = 1e-06
+learning_rate = constant
+metrics = all
+alt_metrics = False
+shuffle = True
+verbose = False
+\end{verbatim}
 
 
     % Add a bibliography block to the postdoc
