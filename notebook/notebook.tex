@@ -280,8 +280,7 @@
     
 
     
-    \section{Second conf call fast
-report}\label{second-conf-call-fast-report}
+    \section{Joint conf-call report \#2}\label{joint-conf-call-report-2}
 
     \begin{Verbatim}[commandchars=\\\{\}]
 {\color{incolor}In [{\color{incolor}1}]:} \PY{k+kn}{import} \PY{n+nn}{datetime}
@@ -290,28 +289,35 @@ report}\label{second-conf-call-fast-report}
 
 
     \begin{Verbatim}[commandchars=\\\{\}]
-2018-04-27 09:52:28.261868
+2018-05-02 12:15:01.378050
 
     \end{Verbatim}
 
     \emph{For this second report I am experimenting a new way to fastly
-deploy updates about my project: \textbf{Jupyter notebook}. In this
+deploy updates about the project: \textbf{Jupyter notebook}. In this
 stage of the project, I'd like to share more code snippets than I would
 in the final thesis, hence markdown support and live execution of code
 snippets turned out to be very useful for such purpose. Actually the two
-main reason why I decide to move from raw LaTeX to here are: (1) Jupyter
-does it faster, (2) it convert everything to LaTeX (I won't be required
-to make any effort to include everything from here to my LaTeX thesis
-document). Whether, for any reason, this method will turn out to be
-ineffective or time-expensive I will drop it out.}
+main reason why I decided to move from raw LaTeX to here are: (1)
+Jupyter does it faster, (2) it converts everything to LaTeX (I won't be
+required to make any effort to include everything from here to my LaTeX
+thesis document). Whether, for any reason, this method will turn out to
+be ineffective or time-expensive, then I will drop it out.}
 
-\subsection{Change log summary}\label{change-log-summary}
+\emph{You will notice changes in style, format and even contents (like
+change logs and other stuffs that may appear useless or too much
+detailed), this necessity arises since I need to keep track of the
+internship's history and I foresee that within few months the commit log
+on Github will get a bit messy and too much wide to be relied on,
+instead these reports are the easiest way to fulfill such task.}
 
-\subsubsection{Training set generator
+    \section{Change log summary}\label{change-log-summary}
+
+\subsection{Training set generator
 function}\label{training-set-generator-function}
 
-Now all samples components domains are centered at the same value \(c\).
-Such domains are determined as follows.
+Now domains of all samples' components are centered at the same value
+\(c\). Such domains are determined as follows.
 
 Is defined \(K = \{k_1,...k_m\}\) where \(k_i\) is the domain radius of
 variable \(x_i\). Let \(x=(x_1,...,x_m) \in X\) be a sample of the
@@ -347,19 +353,19 @@ linear function \(f(\vec{x},\vec{w})=\sum_{j=1}^{m} x_j w_j\) where
 \texttt{error\_std\_dev\ =\ 1}: the error (noise) follows
 
     \begin{Verbatim}[commandchars=\\\{\}]
-{\color{incolor}In [{\color{incolor}20}]:} \PY{k+kn}{import} \PY{n+nn}{numpy} \PY{k}{as} \PY{n+nn}{np}
-         \PY{k+kn}{import} \PY{n+nn}{pprint}
-         \PY{n}{n\PYZus{}samples} \PY{o}{=} \PY{l+m+mi}{8}
-         \PY{n}{n\PYZus{}features} \PY{o}{=} \PY{l+m+mi}{4}
-         \PY{n}{func} \PY{o}{=} \PY{k}{lambda} \PY{n}{\PYZus{}X}\PY{p}{,}\PY{n}{\PYZus{}w} \PY{p}{:} \PY{n}{\PYZus{}X}\PY{o}{.}\PY{n}{dot}\PY{p}{(}\PY{n}{\PYZus{}w}\PY{p}{)}
-         \PY{n}{domain\PYZus{}center} \PY{o}{=} \PY{l+m+mi}{0}
-         \PY{n}{domain\PYZus{}radius} \PY{o}{=} \PY{l+m+mi}{5}
-         \PY{n}{error\PYZus{}mean} \PY{o}{=} \PY{l+m+mi}{0}
-         \PY{n}{error\PYZus{}std\PYZus{}dev} \PY{o}{=} \PY{l+m+mi}{1}
-         \PY{n}{X} \PY{o}{=} \PY{p}{[}\PY{p}{]}
-         \PY{n}{y} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{zeros}\PY{p}{(}\PY{n}{n\PYZus{}samples}\PY{p}{)}
-         \PY{n}{w} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{ones}\PY{p}{(}\PY{n}{n\PYZus{}features}\PY{p}{)}
-         \PY{n}{K} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{random}\PY{o}{.}\PY{n}{uniform}\PY{p}{(}\PY{n}{domain\PYZus{}center} \PY{o}{\PYZhy{}} \PY{n}{domain\PYZus{}radius}\PY{p}{,} \PY{n}{domain\PYZus{}center} \PY{o}{+} \PY{n}{domain\PYZus{}radius}\PY{p}{,} \PY{n}{n\PYZus{}features}\PY{p}{)}
+{\color{incolor}In [{\color{incolor}2}]:} \PY{k+kn}{import} \PY{n+nn}{numpy} \PY{k}{as} \PY{n+nn}{np}
+        \PY{k+kn}{import} \PY{n+nn}{pprint}
+        \PY{n}{n\PYZus{}samples} \PY{o}{=} \PY{l+m+mi}{8}
+        \PY{n}{n\PYZus{}features} \PY{o}{=} \PY{l+m+mi}{4}
+        \PY{n}{func} \PY{o}{=} \PY{k}{lambda} \PY{n}{\PYZus{}X}\PY{p}{,}\PY{n}{\PYZus{}w} \PY{p}{:} \PY{n}{\PYZus{}X}\PY{o}{.}\PY{n}{dot}\PY{p}{(}\PY{n}{\PYZus{}w}\PY{p}{)}
+        \PY{n}{domain\PYZus{}center} \PY{o}{=} \PY{l+m+mi}{0}
+        \PY{n}{domain\PYZus{}radius} \PY{o}{=} \PY{l+m+mi}{5}
+        \PY{n}{error\PYZus{}mean} \PY{o}{=} \PY{l+m+mi}{0}
+        \PY{n}{error\PYZus{}std\PYZus{}dev} \PY{o}{=} \PY{l+m+mi}{1}
+        \PY{n}{X} \PY{o}{=} \PY{p}{[}\PY{p}{]}
+        \PY{n}{y} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{zeros}\PY{p}{(}\PY{n}{n\PYZus{}samples}\PY{p}{)}
+        \PY{n}{w} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{ones}\PY{p}{(}\PY{n}{n\PYZus{}features}\PY{p}{)}
+        \PY{n}{K} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{random}\PY{o}{.}\PY{n}{uniform}\PY{p}{(}\PY{n}{domain\PYZus{}center} \PY{o}{\PYZhy{}} \PY{n}{domain\PYZus{}radius}\PY{p}{,} \PY{n}{domain\PYZus{}center} \PY{o}{+} \PY{n}{domain\PYZus{}radius}\PY{p}{,} \PY{n}{n\PYZus{}features}\PY{p}{)}
 \end{Verbatim}
 
 
@@ -369,52 +375,53 @@ where \(c\) is the center of the domain (\texttt{domain\_center}); \(c\)
 is the same for all \(x_i\).
 
     \begin{Verbatim}[commandchars=\\\{\}]
-{\color{incolor}In [{\color{incolor}19}]:} \PY{n+nb}{print}\PY{p}{(}\PY{n}{K}\PY{p}{)}
+{\color{incolor}In [{\color{incolor}3}]:} \PY{n+nb}{print}\PY{p}{(}\PY{n}{K}\PY{p}{)}
 \end{Verbatim}
 
 
     \begin{Verbatim}[commandchars=\\\{\}]
-[1.32375564 0.71056962 2.54217545 1.6100447 ]
+[ 1.79809865 -3.59344142 -4.53824812 -2.92944313]
 
     \end{Verbatim}
 
     \begin{Verbatim}[commandchars=\\\{\}]
-{\color{incolor}In [{\color{incolor}18}]:} \PY{k}{for} \PY{n}{i} \PY{o+ow}{in} \PY{n+nb}{range}\PY{p}{(}\PY{n}{n\PYZus{}samples}\PY{p}{)}\PY{p}{:}
-             \PY{n}{x} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{zeros}\PY{p}{(}\PY{n}{n\PYZus{}features}\PY{p}{)}
-             \PY{k}{for} \PY{n}{j} \PY{o+ow}{in} \PY{n+nb}{range}\PY{p}{(}\PY{n}{n\PYZus{}features}\PY{p}{)}\PY{p}{:}
-                 \PY{n}{x}\PY{p}{[}\PY{n}{j}\PY{p}{]} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{random}\PY{o}{.}\PY{n}{uniform}\PY{p}{(}\PY{o}{\PYZhy{}}\PY{n}{K}\PY{p}{[}\PY{n}{j}\PY{p}{]} \PY{o}{+} \PY{n}{domain\PYZus{}radius}\PY{p}{,} \PY{n}{K}\PY{p}{[}\PY{n}{j}\PY{p}{]} \PY{o}{+} \PY{n}{domain\PYZus{}radius}\PY{p}{)}
-             \PY{n}{X}\PY{o}{.}\PY{n}{append}\PY{p}{(}\PY{n}{x}\PY{p}{)}
-             \PY{n}{y}\PY{p}{[}\PY{n}{i}\PY{p}{]} \PY{o}{=} \PY{n}{func}\PY{p}{(}\PY{n}{x}\PY{p}{,} \PY{n}{w}\PY{p}{)} \PY{o}{+} \PY{n}{np}\PY{o}{.}\PY{n}{random}\PY{o}{.}\PY{n}{normal}\PY{p}{(}\PY{n}{error\PYZus{}mean}\PY{p}{,} \PY{n}{error\PYZus{}std\PYZus{}dev}\PY{p}{)}
-         \PY{n+nb}{print}\PY{p}{(}\PY{n}{pprint}\PY{o}{.}\PY{n}{PrettyPrinter}\PY{p}{(}\PY{n}{indent}\PY{o}{=}\PY{l+m+mi}{4}\PY{p}{)}\PY{o}{.}\PY{n}{pformat}\PY{p}{(}\PY{n}{X}\PY{p}{)}\PY{p}{)}
-         \PY{n+nb}{print}\PY{p}{(}\PY{n}{pprint}\PY{o}{.}\PY{n}{PrettyPrinter}\PY{p}{(}\PY{n}{indent}\PY{o}{=}\PY{l+m+mi}{4}\PY{p}{)}\PY{o}{.}\PY{n}{pformat}\PY{p}{(}\PY{n}{y}\PY{p}{)}\PY{p}{)}
+{\color{incolor}In [{\color{incolor}4}]:} \PY{k}{for} \PY{n}{i} \PY{o+ow}{in} \PY{n+nb}{range}\PY{p}{(}\PY{n}{n\PYZus{}samples}\PY{p}{)}\PY{p}{:}
+            \PY{n}{x} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{zeros}\PY{p}{(}\PY{n}{n\PYZus{}features}\PY{p}{)}
+            \PY{k}{for} \PY{n}{j} \PY{o+ow}{in} \PY{n+nb}{range}\PY{p}{(}\PY{n}{n\PYZus{}features}\PY{p}{)}\PY{p}{:}
+                \PY{n}{x}\PY{p}{[}\PY{n}{j}\PY{p}{]} \PY{o}{=} \PY{n}{np}\PY{o}{.}\PY{n}{random}\PY{o}{.}\PY{n}{uniform}\PY{p}{(}\PY{o}{\PYZhy{}}\PY{n}{K}\PY{p}{[}\PY{n}{j}\PY{p}{]} \PY{o}{+} \PY{n}{domain\PYZus{}radius}\PY{p}{,} \PY{n}{K}\PY{p}{[}\PY{n}{j}\PY{p}{]} \PY{o}{+} \PY{n}{domain\PYZus{}radius}\PY{p}{)}
+            \PY{n}{X}\PY{o}{.}\PY{n}{append}\PY{p}{(}\PY{n}{x}\PY{p}{)}
+            \PY{n}{y}\PY{p}{[}\PY{n}{i}\PY{p}{]} \PY{o}{=} \PY{n}{func}\PY{p}{(}\PY{n}{x}\PY{p}{,} \PY{n}{w}\PY{p}{)} \PY{o}{+} \PY{n}{np}\PY{o}{.}\PY{n}{random}\PY{o}{.}\PY{n}{normal}\PY{p}{(}\PY{n}{error\PYZus{}mean}\PY{p}{,} \PY{n}{error\PYZus{}std\PYZus{}dev}\PY{p}{)}
+        \PY{n+nb}{print}\PY{p}{(}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{X = }\PY{l+s+se}{\PYZbs{}n}\PY{l+s+s2}{\PYZdq{}} \PY{o}{+} \PY{n}{pprint}\PY{o}{.}\PY{n}{PrettyPrinter}\PY{p}{(}\PY{n}{indent}\PY{o}{=}\PY{l+m+mi}{4}\PY{p}{)}\PY{o}{.}\PY{n}{pformat}\PY{p}{(}\PY{n}{X}\PY{p}{)}\PY{p}{)}
+        \PY{n+nb}{print}\PY{p}{(}\PY{l+s+s2}{\PYZdq{}}\PY{l+s+s2}{y = }\PY{l+s+s2}{\PYZdq{}} \PY{o}{+} \PY{n}{pprint}\PY{o}{.}\PY{n}{PrettyPrinter}\PY{p}{(}\PY{n}{indent}\PY{o}{=}\PY{l+m+mi}{4}\PY{p}{)}\PY{o}{.}\PY{n}{pformat}\PY{p}{(}\PY{n}{y}\PY{p}{)}\PY{p}{)}
 \end{Verbatim}
 
 
     \begin{Verbatim}[commandchars=\\\{\}]
-[   array([6.02188807, 5.67014992, 4.96419302, 5.14972292]),
-    array([5.9642668 , 4.75911729, 3.1911183 , 6.48086813]),
-    array([3.77524004, 5.69812223, 3.93359248, 4.15090944]),
-    array([5.89155598, 4.33238006, 4.67047585, 6.58797714]),
-    array([5.78911644, 4.47464001, 6.09150392, 4.30422703]),
-    array([6.09066085, 5.44278406, 7.06243236, 5.28890016]),
-    array([5.48128054, 4.92461966, 6.29826249, 4.08255381]),
-    array([4.33756388, 5.65386185, 6.73384508, 6.09020554])]
-array([23.09383521, 20.77253317, 17.89046891, 21.22414156, 20.48504975,
-       24.51765509, 19.07431732, 23.32166701])
+X = 
+[   array([3.48056673, 3.66311573, 1.4299936 , 7.55054538]),
+    array([4.95909694, 4.50045896, 1.30309688, 6.08862087]),
+    array([5.07608721, 6.58767389, 5.2575692 , 3.72805014]),
+    array([3.77043329, 2.2126924 , 3.35866552, 3.16660139]),
+    array([6.05415648, 2.63911468, 3.39839388, 4.83522855]),
+    array([6.06406055, 3.4919351 , 1.04547372, 3.42804614]),
+    array([5.59401453, 7.5411467 , 2.00286651, 3.9806937 ]),
+    array([4.17392157, 8.52896014, 2.46282649, 5.01940981])]
+y = array([16.21111616, 17.65333831, 20.98247225, 10.88384095, 16.84887285,
+       14.0120161 , 18.4922333 , 20.42441799])
 
     \end{Verbatim}
 
-    \subsubsection{New metric Real Mean Squared Error
+    \subsection{New metric Real Mean Squared Error
 (RMSE)}\label{new-metric-real-mean-squared-error-rmse}
 
-The training set is in the form of a pair (X,y) where \(y_i\) is the
+The training set is in the form of a pair \((X,y)\) where \(y_i\) is the
 value the target function is supposed to yield for the input \(x_i\),
 actually, whether a noise exists in the training set, then \(y_i\)
 differs from the real value \(\tilde{y}_i\) by a gap that, in our case,
 is normally distributed (with mean = \texttt{error\_mean} and standard
 deviation = \texttt{error\_std\_dev}). Whereas the training set is
-generated with fully control over all parameters, then we know either
-the perturbed value \(y_i\) either the real value
+generated with fully control over all parameters, we know either the
+perturbed value \(y_i\) either the real value
 \(\tilde{y}_i=\mathbb{1} x_i=\sum_{j=1}^{m}x_{ij}\), so we have an
 additional information to take into account in order to study the
 behaviour of different models.
@@ -432,7 +439,7 @@ function value.
 
 Obviously, noiseless training sets lead the MSE to be equal to the RMSE.
 
-    \subsubsection{Computing the error over the whole training
+    \subsection{Computing the error over the whole training
 set}\label{computing-the-error-over-the-whole-training-set}
 
 After each iteration each node computes a set of metrics taking into
@@ -441,33 +448,33 @@ history of its weight vector, MAE (mean absolute error), RMAE (to be
 implemented yet), MSE, RMSE.
 
 Previously I computed the error as the mean of the MSE of each node. A
-way that, at first glance, could seem to be reasonable, but, actually,
-it is not: such MSE is not computed with one weight vector over the
-entire training set, indeed if someone asked for the weight vector which
-had produced such result, then we haven't a value to provide they with.
-That's why the correct way to compute the global metrics is to retrieve
-from each node \(k\) its local model \(\vec{w}_{k}\), compute
-\(\vec{w} = \frac{1}{K}\sum_{k=1}^{K}\vec{w}_k\) and then computes
+way that, at first glance, could seem reasonable, but, actually, it is
+not: such MSE is not computed with one weight vector over the entire
+training set, indeed if someone asked for the weight vector which had
+produced such result, then we would not have a value to provide they
+with. That's why the correct way to compute the global metrics is to
+retrieve from each node \(k\) its local model \(\vec{w}_{k}\), compute
+\(\vec{w} = \frac{1}{K}\sum_{k=1}^{K}\vec{w}_k\) and then compute
 metrics taking into account \(\vec{w}\) along with the whole training
 set.
 
-    \subsubsection{Test description}\label{test-description}
+    \subsection{Test description}\label{test-description}
 
 Since there are several parameters to set up in order to run a test, I
 have excluded to pass them from the command line (by running the program
 in a way like \texttt{\$\ python\ main.py\ {[}parameters{]}}), instead
 they're are set directly inside the script \texttt{main.py}. Leave aside
 for a while the system and training task setup, there are many other
-settings which ensure control over the test execution and outputs.
+settings which ensure control over the test's execution and outputs.
 Without deepening their implementation, when a new test is run, the
 simulator creates a new folder \texttt{/\$TEST\_NAME} in
 \texttt{/test\_log} that contains: - a \texttt{/plot} folder with all
 plots images; - all global logs of the simulation for each topology; -
-the descriptor file that reports the detailed parameters values used for
-the test; - a serialization of the setup that can be used to run again
-the same simulation.
+the descriptor file that reports the detailed parameters' values used
+for the test; - a serialization of the setup that can be used to run
+again the same simulation.
 
-\textbf{Example}.
+    \textbf{Example of a test folder tree}.
 
 \begin{verbatim}
 ./test_log
@@ -497,117 +504,719 @@ the same simulation.
     └── .setup.pkl
 \end{verbatim}
 
-\paragraph{Test descriptor}\label{test-descriptor}
+    \subsubsection{\texorpdfstring{Test descriptor file
+\texttt{.descriptor.txt}}{Test descriptor file .descriptor.txt}}\label{test-descriptor-file-.descriptor.txt}
 
-Below is how the descriptor appears, it doesn't matter if some or most
-of them could be not immediately understandable, simply take a fast look
-at this code snippet to realize how many parameters the system let us
-customize.
+Below is how the descriptor appears. Although each parameter is provided
+with a short description embedded within a comment, it doesn't matter if
+some or most of them won't be immediately understandable, however simply
+take a fast look at this code snippet to realize how many parameters the
+system let us customize. Remind that the \textbf{descriptor file is
+auto-generated} right after a test has started.
 
-\begin{verbatim}
->>> Test Descriptor File
-Title: test
-Date: 2018-04-26 11:28:39.116108
-Summary: -
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# >>> Test Descriptor File}
+\NormalTok{Title: }\StringTok{'test'}
+\NormalTok{Date: }\StringTok{'2018-04-26 11:28:39.116108'}
+\NormalTok{Summary: }\StringTok{'-'}
 
-### BEGIN SETUP ###
-n = 10
-seed = 1524734919
-graphs = {
-    'clique': np.array([
-        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.]]),
-    'cycle': np.array([
-        [1., 1., 0., 0., 0., 0., 0., 0., 0., 0.],
-        [0., 1., 1., 0., 0., 0., 0., 0., 0., 0.],
-        [0., 0., 1., 1., 0., 0., 0., 0., 0., 0.],
-        [0., 0., 0., 1., 1., 0., 0., 0., 0., 0.],
-        [0., 0., 0., 0., 1., 1., 0., 0., 0., 0.],
-        [0., 0., 0., 0., 0., 1., 1., 0., 0., 0.],
-        [0., 0., 0., 0., 0., 0., 1., 1., 0., 0.],
-        [0., 0., 0., 0., 0., 0., 0., 1., 1., 0.],
-        [0., 0., 0., 0., 0., 0., 0., 0., 1., 1.],
-        [1., 0., 0., 0., 0., 0., 0., 0., 0., 1.]]),
-    'diagonal': np.array([
-        [1., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
-        [0., 1., 0., 0., 0., 0., 0., 0., 0., 0.],
-        [0., 0., 1., 0., 0., 0., 0., 0., 0., 0.],
-        [0., 0., 0., 1., 0., 0., 0., 0., 0., 0.],
-        [0., 0., 0., 0., 1., 0., 0., 0., 0., 0.],
-        [0., 0., 0., 0., 0., 1., 0., 0., 0., 0.],
-        [0., 0., 0., 0., 0., 0., 1., 0., 0., 0.],
-        [0., 0., 0., 0., 0., 0., 0., 1., 0., 0.],
-        [0., 0., 0., 0., 0., 0., 0., 0., 1., 0.],
-        [0., 0., 0., 0., 0., 0., 0., 0., 0., 1.]]),
-    'diam-expander': np.array([
-        [1., 1., 0., 0., 0., 1., 0., 0., 0., 1.],
-        [1., 1., 1., 0., 0., 0., 1., 0., 0., 0.],
-        [0., 1., 1., 1., 0., 0., 0., 1., 0., 0.],
-        [0., 0., 1., 1., 1., 0., 0., 0., 1., 0.],
-        [0., 0., 0., 1., 1., 1., 0., 0., 0., 1.],
-        [1., 0., 0., 0., 1., 1., 1., 0., 0., 0.],
-        [0., 1., 0., 0., 0., 1., 1., 1., 0., 0.],
-        [0., 0., 1., 0., 0., 0., 1., 1., 1., 0.],
-        [0., 0., 0., 1., 0., 0., 0., 1., 1., 1.],
-        [1., 0., 0., 0., 1., 0., 0., 0., 1., 1.]]),
-    'root-expander': np.array([
-        [1., 1., 0., 1., 0., 0., 0., 0., 0., 0.],
-        [0., 1., 1., 0., 1., 0., 0., 0., 0., 0.],
-        [0., 0., 1., 1., 0., 1., 0., 0., 0., 0.],
-        [0., 0., 0., 1., 1., 0., 1., 0., 0., 0.],
-        [0., 0., 0., 0., 1., 1., 0., 1., 0., 0.],
-        [0., 0., 0., 0., 0., 1., 1., 0., 1., 0.],
-        [0., 0., 0., 0., 0., 0., 1., 1., 0., 1.],
-        [1., 0., 0., 0., 0., 0., 0., 1., 1., 0.],
-        [0., 1., 0., 0., 0., 0., 0., 0., 1., 1.],
-        [1., 0., 1., 0., 0., 0., 0., 0., 0., 1.]]),
-    'star': np.array([
-        [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
-        [1., 1., 0., 0., 0., 0., 0., 0., 0., 0.],
-        [1., 0., 1., 0., 0., 0., 0., 0., 0., 0.],
-        [1., 0., 0., 1., 0., 0., 0., 0., 0., 0.],
-        [1., 0., 0., 0., 1., 0., 0., 0., 0., 0.],
-        [1., 0., 0., 0., 0., 1., 0., 0., 0., 0.],
-        [1., 0., 0., 0., 0., 0., 1., 0., 0., 0.],
-        [1., 0., 0., 0., 0., 0., 0., 1., 0., 0.],
-        [1., 0., 0., 0., 0., 0., 0., 0., 1., 0.],
-        [1., 0., 0., 0., 0., 0., 0., 0., 0., 1.]]
-    )}
+\CommentTok{### }\RegionMarkerTok{BEGIN}\CommentTok{ SETUP }\AlertTok{###}
+\NormalTok{n }\OperatorTok{=} \DecValTok{10}  \CommentTok{# amount of computational nodes}
+\NormalTok{seed }\OperatorTok{=} \DecValTok{1524734919}  \CommentTok{# random initial seed}
 
-# TRAINING SET SETUP
-n_samples = 100000
-n_features = 100
-yhat = <class 'src.mltoolbox.LinearYHatFunction'>
-domain_radius = 5
-domain_center = 0
-error_mean = 0
-error_std_dev = 0
+\CommentTok{# adjacency matrices for each graph}
+\NormalTok{graphs }\OperatorTok{=}\NormalTok{ \{}
+    \StringTok{'clique'}\NormalTok{: np.array([}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.]]),}
+    \StringTok{'cycle'}\NormalTok{: np.array([}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{.]]),}
+    \StringTok{'diagonal'}\NormalTok{: np.array([}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{.]]),}
+    \StringTok{'diam-expander'}\NormalTok{: np.array([}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.]]),}
+    \StringTok{'root-expander'}\NormalTok{: np.array([}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{.]]),}
+    \StringTok{'star'}\NormalTok{: np.array([}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{.],}
+\NormalTok{        [}\DecValTok{1}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{0}\NormalTok{., }\DecValTok{1}\NormalTok{.]]}
+\NormalTok{    )\}}
 
-# CLUSTER SETUP
-sample_function = <function LinearYHatFunction.f at 0x7f13fa4d00d0>
-max_iter = None
-max_time = 100000
-method = stochastic
-batch_size = 20
-activation_func = None
-loss = <class 'src.mltoolbox.SquaredLossFunction'>
-penalty = l2
-epsilon = 0.01
-alpha = 1e-06
-learning_rate = constant
-metrics = all
-alt_metrics = False
-shuffle = True
-verbose = False
-\end{verbatim}
+\CommentTok{# TRAINING SET SETUP}
+\NormalTok{n_samples }\OperatorTok{=} \DecValTok{100000}
+\NormalTok{n_features }\OperatorTok{=} \DecValTok{100}
+
+\CommentTok{# function used to generate the training set}
+\NormalTok{sample_function }\OperatorTok{=} \OperatorTok{<}\NormalTok{function LinearYHatFunction.f at }\BaseNTok{0x7f13fa4d00d0}\OperatorTok{>}
+\NormalTok{domain_radius }\OperatorTok{=} \DecValTok{5}
+\NormalTok{domain_center }\OperatorTok{=} \DecValTok{0}
+\NormalTok{error_mean }\OperatorTok{=} \DecValTok{0}
+\NormalTok{error_std_dev }\OperatorTok{=} \DecValTok{1}
+
+\CommentTok{# CLUSTER SETUP}
+\NormalTok{max_iter }\OperatorTok{=} \VariableTok{None}  \CommentTok{# upon reaching max_iter iterations the cluster will stop}
+\NormalTok{max_time }\OperatorTok{=} \DecValTok{100000}  \CommentTok{# the same for the time }
+\NormalTok{yhat }\OperatorTok{=} \OperatorTok{<}\KeywordTok{class} \StringTok{'src.mltoolbox.LinearYHatFunction'}\OperatorTok{>}  \CommentTok{# function to learn the parameters of}
+\NormalTok{method }\OperatorTok{=} \StringTok{'stochastic'}
+\NormalTok{batch_size }\OperatorTok{=} \DecValTok{20}  \CommentTok{# matters only for the batch gradient method}
+\NormalTok{activation_func }\OperatorTok{=} \VariableTok{None}  \CommentTok{# to specify for classification training task for instance}
+\NormalTok{loss }\OperatorTok{=} \OperatorTok{<}\KeywordTok{class} \StringTok{'src.mltoolbox.SquaredLossFunction'}\OperatorTok{>}  \CommentTok{# loss function}
+\NormalTok{penalty }\OperatorTok{=} \StringTok{'l2'}  \CommentTok{# not used yet}
+\NormalTok{epsilon }\OperatorTok{=} \FloatTok{0.01}  \CommentTok{# error goodness threshold}
+\NormalTok{alpha }\OperatorTok{=} \FloatTok{1e-06}  \CommentTok{# alpha constant}
+\NormalTok{learning_rate }\OperatorTok{=} \StringTok{'constant'}  \CommentTok{# type of learning rate, not used yet}
+\NormalTok{metrics }\OperatorTok{=} \StringTok{'all'}  \CommentTok{# specify which metrics the system may take into account}
+\NormalTok{alt_metrics }\OperatorTok{=} \VariableTok{False}  \CommentTok{# if True then the MSE will be computed as it happened earlier}
+\NormalTok{shuffle }\OperatorTok{=} \VariableTok{True}  \CommentTok{# whether the cluster should shuffle the training set}
+\NormalTok{verbose }\OperatorTok{=} \VariableTok{False}  \CommentTok{# not used yet}
+\end{Highlighting}
+\end{Shaded}
+
+    \section{Simulation ???}\label{simulation}
+
+In this section are listed some useful details in order to doubtless
+understand further simulation outputs.
+
+\subsection{\texorpdfstring{Meaning of
+\emph{iteration}}{Meaning of iteration}}\label{meaning-of-iteration}
+
+Each node owns a local field \texttt{iteration}. The starting value is
+0. Actually iteration equal to \(t\) means that the weight vector has
+been updated \(t\) times. A single update of the weight
+\(w_{t+i} = w_t - \alpha \nabla Err\) implies the iteration to increase
+by one from \(t\) to \(t+1\). - "Node \(i\) is at iteration \(t\)" means
+it has already computed the \(t\)-th step of the gradient descent
+method, thus \(w_t\) is its the most recent weight vector. - "Node
+computes iteration \(t\)" means that \(i\) is performing the update
+\(w_{t} = w_{t-1} - \alpha \nabla Err\).
+
+The \emph{cluster} model (the object that supervises the distributed
+simulation) has an \texttt{iteration} field too, it is equal to the
+fewest iteration among all nodes. \texttt{cluster.iteration} being equal
+to \(t\) means that each node has already performed at least \(t\)
+updates of \(w\), thus a global \(w_t\) can be retrieved (and used to
+compute metrics for instance).
+
+\subsection{Single iteration time}\label{single-iteration-time}
+
+\begin{quote}
+\textbf{\texttt{time.perf\_counter()}}
+\end{quote}
+
+\begin{quote}
+Return the value (in fractional seconds) of a performance counter, i.e.
+a clock with the highest available resolution to measure a short
+duration. It does include time elapsed during sleep and is
+\textbf{system-wide}. The reference point of the returned value is
+undefined, so that only the difference between the results of
+consecutive calls is valid.
+\end{quote}
+
+\begin{quote}
+\emph{(from the
+\href{https://docs.python.org/3/library/time.html\#time.perf_counter}{Python
+Standard Library Documentation})}
+\end{quote}
+
+\texttt{time.perf\_counter()} is the value Python developers suggest to
+use in order to make performance evaluation of python algorithms, but,
+obviously, since it is taken directly from the processor, it is
+\emph{system-wide}, thus depends on too many unknown and unmanageable
+variable conditions (i.e. other system processes, OS processes' managing
+system, etc.).
+
+It's clear why the time taken by a node to perform a single iteration
+computation (e.g. gradient descent weights update) cannot be computed
+considering such clock, so the function below isn't reliable at all:
+
+    \begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{def}\NormalTok{ unreliable_gradient_step(}\VariableTok{self}\NormalTok{):}
+    \CommentTok{"""}
+\CommentTok{    Perform a single step of the gradient descent method.}
+\CommentTok{    :return: a list containing [clock_before, clock_after] w.r.t. the computation}
+\CommentTok{    """}
+    \CommentTok{# useful vars for estimate the time taken by the computation}
+\NormalTok{    t0 }\OperatorTok{=} \VariableTok{self}\NormalTok{.local_clock}
+    \CommentTok{# get the processor time counter before the computation starts}
+\NormalTok{    c0 }\OperatorTok{=}\NormalTok{ time.perf_counter()}
+
+    \CommentTok{## STEP COMPUTATION }\RegionMarkerTok{BEGIN}
+    \CommentTok{# avg internal self.W vector with W incoming from dependencies}
+    \ControlFlowTok{if} \VariableTok{self}\NormalTok{.iteration }\OperatorTok{>} \DecValTok{0}\NormalTok{:}
+        \VariableTok{self}\NormalTok{.avg_weight_with_dependencies()}
+    \CommentTok{# compute the gradient descent step}
+    \VariableTok{self}\NormalTok{.training_task.step()}
+    \CommentTok{# broadcast the obtained value to all node's recipients}
+    \VariableTok{self}\NormalTok{.broadcast_weight_to_recipients()}
+    \CommentTok{## STEP COMPUTATION }\RegionMarkerTok{END}
+        
+    \CommentTok{# get the processor counter after the computation has ended}
+\NormalTok{    cf }\OperatorTok{=}\NormalTok{ time.perf_counter()}
+    \CommentTok{# computes the clock when the computation has finished}
+\NormalTok{    tf }\OperatorTok{=}\NormalTok{ t0 }\OperatorTok{+}\NormalTok{ cf }\OperatorTok{-}\NormalTok{ c0}
+        
+    \CommentTok{# update the local_clock}
+    \VariableTok{self}\NormalTok{.local_clock }\OperatorTok{=}\NormalTok{ tf}
+    \VariableTok{self}\NormalTok{.iteration }\OperatorTok{+=} \DecValTok{1}
+
+    \ControlFlowTok{return}\NormalTok{ [t0, tf]}
+\end{Highlighting}
+\end{Shaded}
+
+    Instead it is more convenient and reasonable to consider the following
+function:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{def}\NormalTok{ reliable_gradient_step(}\VariableTok{self}\NormalTok{):}
+    \CommentTok{"""}
+\CommentTok{    Perform a single step of the gradient descent method.}
+\CommentTok{    :return: a list containing [clock_before, clock_after] w.r.t. the computation}
+\CommentTok{    """}
+    \CommentTok{# useful vars for estimate the time taken by the computation}
+\NormalTok{    t0 }\OperatorTok{=} \VariableTok{self}\NormalTok{.local_clock}
+
+    \CommentTok{# avg internal self.W vector with W incoming from dependencies}
+    \ControlFlowTok{if} \VariableTok{self}\NormalTok{.iteration }\OperatorTok{>} \DecValTok{0}\NormalTok{:}
+        \VariableTok{self}\NormalTok{.avg_weight_with_dependencies()}
+
+    \CommentTok{# compute the gradient descent step}
+    \VariableTok{self}\NormalTok{.training_task.step()}
+
+    \CommentTok{# broadcast the obtained value to all node's recipients}
+    \VariableTok{self}\NormalTok{.broadcast_weight_to_recipients()}
+
+    \CommentTok{# get the counter after the computation has ended}
+    \CommentTok{# get the time from an exponential with lambda parameter equal to 1}
+    \CommentTok{# whereas lambda = 1 / mean_time, so mean_time = 1}
+\NormalTok{    dt }\OperatorTok{=}\NormalTok{ random.expovariate(}\DecValTok{1}\NormalTok{)}
+
+    \CommentTok{# computes the clock when the computation has finished}
+\NormalTok{    tf }\OperatorTok{=}\NormalTok{ t0 }\OperatorTok{+}\NormalTok{ dt}
+    \CommentTok{# update the local_clock}
+    \VariableTok{self}\NormalTok{.local_clock }\OperatorTok{=}\NormalTok{ tf}
+
+    \VariableTok{self}\NormalTok{.iteration }\OperatorTok{+=} \DecValTok{1}
+    \VariableTok{self}\NormalTok{.log.append(}\VariableTok{self}\NormalTok{.local_clock)}
+
+    \ControlFlowTok{return}\NormalTok{ [t0, tf]}
+\end{Highlighting}
+\end{Shaded}
+
+The time taken by a node to perform a single gradient step is handled by
+a random variable \(X \sim Exp(\lambda)\) (e.g. exponentially
+distributed with parameter \(\lambda\)) where
+\(\mathbb{E}[X] = \frac{1}{\lambda}\). At the moment \(\lambda\) is
+fixed to \(1\), so, in this case, the mean time is equal to one too.
+
+It is not mandatory for you to know all details about how the system
+actually works.
+
+    \section{Previous tests - 002 (those made until
+25/04/18)}\label{previous-tests---002-those-made-until-250418}
+
+    \section{New tests - 003 (since
+26/04/18)}\label{new-tests---003-since-260418}
+
+\subsection{Main changes from earlier
+tests}\label{main-changes-from-earlier-tests}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  The number of computational units has been fixed to \(n=10\);
+\item
+  \texttt{diam-expander} has lost one edges per node. It is now defined
+  as
+  \[G=(V=\{0,...n-1\},E=\{(i, i+1\text{ mod }n), (i, i+\frac{n}{2}\text{ mod }n) : i \in [n]\});\]
+\item
+  a new dependency graph \texttt{root-expander} has been considered
+  \[G=(V=\{0,...n-1\},E=\{(i, i+1\text{ mod }n), (i, i+\sqrt{n}\text{ mod }n) : i \in [n]\});\]
+\item
+  at the moment we will focus on testing the classic GD method. Right
+  after obtaining some results for GD, we will test BGD (batch gradient
+  descent) and SGD (stochastic gradient descent) as well.
+\end{enumerate}
+
+    \subsection{Relevant tests fixed
+parameters}\label{relevant-tests-fixed-parameters}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{n }\OperatorTok{=} \DecValTok{10}
+\NormalTok{seed }\OperatorTok{=} \BuiltInTok{str}\NormalTok{(time.time()) }\CommentTok{# timestamp}
+\NormalTok{graphs }\OperatorTok{=}\NormalTok{ \{}
+    \CommentTok{# cycle, clique, root-expander, diam-expander, diagonal adjacency matrices}
+\NormalTok{\}}
+
+\CommentTok{# TRAINING SET SETUP}
+\NormalTok{n_features }\OperatorTok{=} \DecValTok{100}
+\NormalTok{yhat }\OperatorTok{=} \OperatorTok{<}\KeywordTok{class} \StringTok{'src.mltoolbox.LinearYHatFunction'}\OperatorTok{>}
+\NormalTok{domain_radius }\OperatorTok{=} \DecValTok{5}
+\NormalTok{domain_center }\OperatorTok{=} \DecValTok{0}
+\NormalTok{error_mean }\OperatorTok{=} \DecValTok{0}
+\NormalTok{error_std_dev }\OperatorTok{=} \DecValTok{1}
+
+\CommentTok{# CLUSTER SETUP}
+\NormalTok{sample_function }\OperatorTok{=} \OperatorTok{<}\NormalTok{function LinearYHatFunction.f at }\BaseNTok{0x7f13fa4d00d0}\OperatorTok{>}
+\NormalTok{max_iter }\OperatorTok{=} \VariableTok{None}
+\NormalTok{max_time }\OperatorTok{=} \DecValTok{10000}
+\NormalTok{method }\OperatorTok{=} \StringTok{'classic'}
+\NormalTok{loss }\OperatorTok{=} \OperatorTok{<}\KeywordTok{class} \StringTok{'src.mltoolbox.SquaredLossFunction'}\OperatorTok{>}
+\NormalTok{penalty }\OperatorTok{=}\NormalTok{ l2}
+\NormalTok{epsilon }\OperatorTok{=} \FloatTok{0.01}
+\NormalTok{alpha }\OperatorTok{=} \FloatTok{1e-06}
+\NormalTok{learning_rate }\OperatorTok{=}\NormalTok{ constant}
+\NormalTok{metrics }\OperatorTok{=} \BuiltInTok{all}
+\NormalTok{alt_metrics }\OperatorTok{=} \VariableTok{False}
+\NormalTok{shuffle }\OperatorTok{=} \VariableTok{True}
+\NormalTok{verbose }\OperatorTok{=} \VariableTok{False}
+\end{Highlighting}
+\end{Shaded}
+
+    The parameter we will focus particularly on and the only which will vary
+is \texttt{n\_samples}.
+
+    \subsection{100 samples GD test}\label{samples-gd-test}
+
+\texttt{n\_samples\ =\ 100}.
+
+    \subsubsection{100 sample GD test - Iterations over
+time}\label{sample-gd-test---iterations-over-time}
+
+\includegraphics{media/img/tests/test_003_100samples_classic/1_iter_time.png}
+This trend will be a constant through all future tests: the less the
+nodes' connections the fastest the system can advance in iterations.
+
+As expected, in diagonal topology, since nodes never wait still and
+since the mean of the time taken by each iteration is equal to 1, then
+such topology always achieves an amount of iterations approximately
+equal to the time of the simulation. This plot makes us notice that the
+amount of iteration achieved by each topology depends, in some way, on
+the graph's degree (e.g. number of dependency established among nodes).
+We would like to study in depth this intuition.
+
+    \subsubsection{100 sample GD test - MSE over
+iterations}\label{sample-gd-test---mse-over-iterations}
+
+\includegraphics{media/img/tests/test_003_100samples_classic/2_mse_iter.png}
+Due to restricted training set size, a single node doesn't own enough
+samples to achieve a good model without communicating with other nodes,
+therefore diagonal topology performs far worse than the others, which in
+turn behave almost equally.
+
+    \subsubsection{100 samples GD test - RMSE over
+iterations}\label{samples-gd-test---rmse-over-iterations}
+
+\includegraphics{media/img/tests/test_003_100samples_classic/2_real-mse_iter.png}
+RMSE/iter plot doesn't suggest anything more than MSE/iter already does.
+
+    \subsubsection{100 samples GD test - MSE over
+time}\label{samples-gd-test---mse-over-time}
+
+\begin{figure}
+\centering
+\includegraphics{media/img/tests/test_003_100samples_classic/3_mse_time.png}
+\caption{MSE over time}
+\end{figure}
+
+    \subsubsection{100 samples GD test - RMSE over
+time}\label{samples-gd-test---rmse-over-time}
+
+\includegraphics{media/img/tests/test_003_100samples_classic/3_real-mse_time.png}
+\includegraphics{media/img/tests/test_003_100samples_classic/3_real-mse_time_zoom.png}
+
+As already seen in previous plots for this test, diagonal topology,
+unlike all the others, never achieves a good prediction model.
+
+The cycle turns out to be the fastest.
+
+2-degree graphs plots (root expander and diameter expander) are very
+close.
+
+\emph{The same test with different seeds has led to almost identical
+results.}
+
+    \subsection{1k samples GD test}\label{k-samples-gd-test}
+
+\texttt{n\_samples\ =\ 1000}.
+
+    \subsubsection{1k samples GD test - iterations over
+time}\label{k-samples-gd-test---iterations-over-time}
+
+\includegraphics{media/img/tests/test_003_1ksamples_classic/1_iter_time.png}
+Almost the same result as in 100 samples test.
+
+    \subsubsection{1k samples GD test - MSE over
+iterations}\label{k-samples-gd-test---mse-over-iterations}
+
+\includegraphics{media/img/tests/test_003_1ksamples_classic/2_mse_iter.png}
+\includegraphics{media/img/tests/test_003_1ksamples_classic/2_mse_iter_zoom.png}
+
+Now, since the amount of samples in the training set is equal to 1000,
+each node \(i\) owns a subsample \(\mathcal{X}_i \subset \mathcal{X}\)
+such that \(|\mathcal{X}_i| = 100\) (when for \(|\mathcal{X}|=100\),
+\(|\mathcal{X}_i|=10\)). Such condition seems enough for the diagonal
+topology to perform similarly as those with communications among nodes.
+
+    \subsubsection{1k samples GD test - RMSE over
+iterations}\label{k-samples-gd-test---rmse-over-iterations}
+
+\includegraphics{media/img/tests/test_003_1ksamples_classic/2_real-mse_iter.png}
+\includegraphics{media/img/tests/test_003_1ksamples_classic/2_real-mse_iter_zoom.png}
+By comparing MSE/iter and RMSE/iter, we notice that diagonal topology
+suffers noise more than others topologies do.
+
+    \subsubsection{1k samples GD test - MSE over
+time}\label{k-samples-gd-test---mse-over-time}
+
+\begin{figure}
+\centering
+\includegraphics{media/img/tests/test_003_1ksamples_classic/3_mse_time.png}
+\caption{MSE over time}
+\end{figure}
+
+    \subsubsection{1k samples GD test - RMSE over
+time}\label{k-samples-gd-test---rmse-over-time}
+
+\includegraphics{media/img/tests/test_003_1ksamples_classic/3_real-mse_time.png}
+\includegraphics{media/img/tests/test_003_1ksamples_classic/3_real-mse_time_zoom.png}
+
+Despite the behaviour of topologies, with respect to \textbf{convergence
+speed}, is almost the same as the one observed in the \emph{100 samples
+test MSE/time plot}, now diagonal topology doesn't behave so bad anymore
+(its error differs only by 1 from other topologies).
+
+\emph{The same test with different seeds has led to almost identical
+results.}
+
+    \subsection{10k samples test}\label{k-samples-test}
+
+\texttt{n\_samples\ =\ 10000}.
+
+    \subsubsection{10k samples GD test - iterations over
+time}\label{k-samples-gd-test---iterations-over-time}
+
+\begin{figure}
+\centering
+\includegraphics{media/img/tests/test_003_10ksamples_classic/1_iter_time.png}
+\caption{Iterations over time}
+\end{figure}
+
+    \subsubsection{10k samples GD test - MSE over
+iterations}\label{k-samples-gd-test---mse-over-iterations}
+
+\begin{figure}
+\centering
+\includegraphics{media/img/tests/test_003_10ksamples_classic/2_mse_iter.png}
+\caption{MSE over iterations}
+\end{figure}
+
+    \subsubsection{10k samples GD test - RMSE over
+iterations}\label{k-samples-gd-test---rmse-over-iterations}
+
+\includegraphics{media/img/tests/test_003_10ksamples_classic/2_real-mse_iter.png}
+\includegraphics{media/img/tests/test_003_10ksamples_classic/2_real-mse_iter_zoom.png}
+
+    \subsubsection{10k samples GD test - MSE over
+time}\label{k-samples-gd-test---mse-over-time}
+
+\includegraphics{media/img/tests/test_003_10ksamples_classic/3_mse_time.png}
+\includegraphics{media/img/tests/test_003_10ksamples_classic/3_mse_time_zoom.png}
+
+    \subsubsection{10k samples GD test - RMSE over
+time}\label{k-samples-gd-test---rmse-over-time}
+
+\includegraphics{media/img/tests/test_003_10ksamples_classic/3_real-mse_time.png}
+\includegraphics{media/img/tests/test_003_10ksamples_classic/3_real-mse_time_zoom.png}
+
+With \(10000\) samples diagonal outperforms others topologies with
+regard to either MSE/time and RMSE/time plots.
+
+\emph{The same test with different seeds has led to almost identical
+results.}
+
+    \subsection{100k samples GD test}\label{k-samples-gd-test}
+
+\texttt{n\_samples\ =\ 100000}.
+
+    \subsubsection{100k samples GD test - iterations over
+time}\label{k-samples-gd-test---iterations-over-time}
+
+\begin{figure}
+\centering
+\includegraphics{media/img/tests/test_003_100ksamples_classic/1_iter_time.png}
+\caption{Iterations over time}
+\end{figure}
+
+    \subsubsection{100k samples GD test - MSE over
+iterations}\label{k-samples-gd-test---mse-over-iterations}
+
+\begin{figure}
+\centering
+\includegraphics{media/img/tests/test_003_100ksamples_classic/2_mse_iter.png}
+\caption{MSE over iterations}
+\end{figure}
+
+    \subsubsection{100k samples GD test - RMSE over
+iterations}\label{k-samples-gd-test---rmse-over-iterations}
+
+\includegraphics{media/img/tests/test_003_100ksamples_classic/2_real-mse_iter.png}
+\includegraphics{media/img/tests/test_003_100ksamples_classic/2_real-mse_iter_zoom.png}
+
+    \subsubsection{100k samples GD test - MSE over
+time}\label{k-samples-gd-test---mse-over-time}
+
+\includegraphics{media/img/tests/test_003_100ksamples_classic/3_mse_time.png}
+\includegraphics{media/img/tests/test_003_100ksamples_classic/3_mse_time_zoom.png}
+
+    \subsubsection{100k samples GD test - RMSE over
+time}\label{k-samples-gd-test---rmse-over-time}
+
+\includegraphics{media/img/tests/test_003_100ksamples_classic/3_real-mse_time.png}
+\includegraphics{media/img/tests/test_003_100ksamples_classic/3_real-mse_time_zoom.png}
+
+\emph{The same test with different seeds has led to almost identical
+results.}
+
+    While the training set gets bigger, diagonal topology turns out to be by
+far the fastest. I would like to make some tests with different kinds of
+training sets to assess whether this results are strongly related to
+this training set morphology or can be extended to more general cases.
+
+    \begin{center}\rule{0.5\linewidth}{\linethickness}\end{center}
+
+Below tests with 100 and 1000 samples repeated with
+\texttt{method=\textquotesingle{}stochastic\textquotesingle{}} instead
+of \texttt{classic} for the gradient descent.
+
+\subsection{100 samples SGD test}\label{samples-sgd-test}
+
+\subsubsection{100 samples SGD test - iterations over
+time}\label{samples-sgd-test---iterations-over-time}
+
+\begin{figure}
+\centering
+\includegraphics{media/img/tests/test_003_100samples_stochastic/1_iter_time.png}
+\caption{Iterations over time}
+\end{figure}
+
+\subsubsection{100 samples SGD test - MSE over
+iterations}\label{samples-sgd-test---mse-over-iterations}
+
+\includegraphics{media/img/tests/test_003_100samples_stochastic/2_mse_iter.png}
+\includegraphics{media/img/tests/test_003_100samples_stochastic/2_mse_iter_zoom.png}
+
+\subsubsection{100 samples SGD test - RMSE over
+iterations}\label{samples-sgd-test---rmse-over-iterations}
+
+\includegraphics{media/img/tests/test_003_100samples_stochastic/2_real-mse_iter.png}
+\includegraphics{media/img/tests/test_003_100samples_stochastic/2_real-mse_iter_zoom.png}
+
+\subsubsection{100 samples SGD test - MSE over
+time}\label{samples-sgd-test---mse-over-time}
+
+\begin{figure}
+\centering
+\includegraphics{media/img/tests/test_003_100samples_stochastic/3_mse_time.png}
+\caption{MSE over time}
+\end{figure}
+
+\subsubsection{100 samples SGD test - RMSE over
+time}\label{samples-sgd-test---rmse-over-time}
+
+\begin{figure}
+\centering
+\includegraphics{media/img/tests/test_003_100samples_stochastic/3_real-mse_time.png}
+\caption{RMSE over time}
+\end{figure}
+
+    \subsection{1k samples SGD test}\label{k-samples-sgd-test}
+
+\subsubsection{1k samples SGD test - iterations over
+time}\label{k-samples-sgd-test---iterations-over-time}
+
+\begin{figure}
+\centering
+\includegraphics{media/img/tests/test_003_1ksamples_stochastic/1_iter_time.png}
+\caption{Iterations over time}
+\end{figure}
+
+\subsubsection{1k samples SGD test - MSE over
+iterations}\label{k-samples-sgd-test---mse-over-iterations}
+
+\includegraphics{media/img/tests/test_003_1ksamples_stochastic/2_mse_iter.png}
+\includegraphics{media/img/tests/test_003_1ksamples_stochastic/2_mse_iter_zoom.png}
+
+\subsubsection{1k samples SGD test - RMSE over
+iterations}\label{k-samples-sgd-test---rmse-over-iterations}
+
+\includegraphics{media/img/tests/test_003_1ksamples_stochastic/2_real-mse_iter.png}
+\includegraphics{media/img/tests/test_003_1ksamples_stochastic/2_real-mse_iter_zoom.png}
+
+\subsubsection{1k samples SGD test - MSE over
+time}\label{k-samples-sgd-test---mse-over-time}
+
+\begin{figure}
+\centering
+\includegraphics{media/img/tests/test_003_1ksamples_stochastic/3_mse_time.png}
+\caption{MSE over time}
+\end{figure}
+
+\subsubsection{1k samples SGD test - RMSE over
+time}\label{k-samples-sgd-test---rmse-over-time}
+
+\includegraphics{media/img/tests/test_003_1ksamples_stochastic/3_real-mse_time.png}
+\includegraphics{media/img/tests/test_003_1ksamples_stochastic/3_real-mse_time_zoom.png}
+
+    \subsection{Theoretical point of view}\label{theoretical-point-of-view}
+
+\subsubsection{Nodes' degree}\label{nodes-degree}
+
+We've noticed that the iterations' speed is strongly related to the
+number of connections established among nodes, this is clearly
+observable in all \emph{iteration over time} plots. A similar speed gain
+can be seen in \emph{MSE over time} plot: whether the amount of samples
+in the training set is big enough such that even a single node alone can
+achieve a good solution, then connections are just cause of slowdown. It
+seems that the gain in iterations' speed always matters far more than
+the gain in information flow due to an high dependency graph's degree.
+This is only a suggestion given by these early tests.
+
+Consider the following plot (\emph{MSE over time 10k samples GD test
+003}).
+
+\begin{figure}
+\centering
+\includegraphics{media/img/tests/test_003_10ksamples_classic/3_mse_time_big.png}
+\caption{MSE\_over\_time}
+\end{figure}
+
+By inverting it we obtain the plot below. \emph{NB: actually such
+functions aren't invertible since in small intervals the error can
+oscillate, anyway fixes can be applied to make them invertible (like
+exploiting a moving average).}
+
+\begin{figure}
+\centering
+\includegraphics{media/img/tests/test_003_10ksamples_classic/4_time_mse_big.png}
+\caption{Time over MSE}
+\end{figure}
+
+We can compare the time taken by each topology to achieve a same value
+of MSE, then effectively estimate the speed ratio among different
+topologies. The same will be done for RMSE/time, MSE/iter and RMSE/iter
+plots too.
+
+    \subsubsection{Dependency graph's
+diameter}\label{dependency-graphs-diameter}
+
+Assume all nodes in the system being at iteration \(r>0\), assume that
+one node \(s\) gets stuck there (it never advances to iteration
+\(r+1\)), then: - nodes at distance 1 from \(s\) can advance only by one
+more iteration; - nodes at distance 2 from \(s\) can advance only by two
+more iterations; - and so on, up to nodes at distance \(d_s\) from \(s\)
+(where \(d_s = max\{dist(s, i) : i \in V\}\)) that can advance by
+\(d_s\) more iterations.
+
+In general: \[
+\forall i,j \in V,\ i \text{ is at iteration }r \Rightarrow j \text{ is at iteration } \in [r-dist(i,j),r+dist(i,j)] \subseteq \mathbb{N}.
+\]
+
+Since \(\forall i,j \in V,\ dist(i,j) \leq diam\) (where \(diam\) is the
+graph's diameter), then the maximum distance between two nodes, with
+respect to iterations' number, is always less than or equal to the graph
+diameter. Even this property seems to be a key factor in speed gain.
+
+For instance, the following inequality
+\[diam(\text{clique}) = 1 < diam(\text{diam-expander}) = \frac{n}{2} < diam(\text{cycle}) = n-1\]
+holds also for the speed: the cycle is faster than the diam-expander
+which in turn is faster than the clique.
+
+The questions now I am looking an answer for are: 1. how the speed is
+related to the nodes' degree? 2. how the speed is related to graph's
+diameter? 3. how much do degree and diameter weight in the observed
+topologies' speed? which matters more?
+
+    \subsubsection{System dynamic}\label{system-dynamic}
+
+Let \(r \geq 0\) be a fixed iteration number. Let \(X_1, X_2, ..., X_n\)
+be \(n\) independent random variables where \(X_i\) is the time taken by
+node \(i\) to advance to iteration \(r+1\). At the moment we consider
+\(X_i \sim Exp(\lambda = 1)\), so -
+\(P(X_i \leq t) = 1-e^{-\lambda t} = 1-e^{-t}\), hence
+\(P(X_i > t) = e^{-\lambda t} = e^{-t}\). -
+\(\mathbb{E}[X_i] = \frac{1}{\lambda} = 1\).
+
+Lets define a new random variable \(Z = max\{X_i : 1 \leq i \leq n\}\).
+\(Z\) is the time taken by the slowest node to complete the \((r+1)\)-th
+update of its weight vector, where: -
+\(P(Z \leq z) = \prod_{i=1}^{n} P(X_i \leq z) = (1-e^{-t})^n\); -
+\(\mathbb{E}[Z] = \prod_{i=1}^{n} \mathbb{E}[X_i] = (\frac{1}{\lambda})^n = 1\).
+
+\(Z\) reflects the time taken by the slowest node to perform the
+\((r+1)\)-th weight update.
+
+It is easy to exploit \(Z\) to analyze the clique behaviour since \(Z\)
+is exactly the time taken by each node to perform the \((r+1)\)-th
+update of its weight. For other topologies it is not so trivial. Anyway,
+this is the way I will follow to give significance from a theoretical
+point of view to results.
 
 
     % Add a bibliography block to the postdoc
