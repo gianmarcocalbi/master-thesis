@@ -11802,7 +11802,7 @@ div#notebook {
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>2018-05-02 12:15:01.378050
+<pre>2018-05-02 15:44:21.668201
 </pre>
 </div>
 </div>
@@ -11921,7 +11921,7 @@ Let $x=(x_1,...,x_m) \in X$ be a sample of the training set, then the domain of 
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>[ 1.79809865 -3.59344142 -4.53824812 -2.92944313]
+<pre>[ 4.98037892  1.21447276 -3.87089625  3.30336856]
 </pre>
 </div>
 </div>
@@ -11960,16 +11960,16 @@ Let $x=(x_1,...,x_m) \in X$ be a sample of the training set, then the domain of 
 
 <div class="output_subarea output_stream output_stdout output_text">
 <pre>X = 
-[   array([3.48056673, 3.66311573, 1.4299936 , 7.55054538]),
-    array([4.95909694, 4.50045896, 1.30309688, 6.08862087]),
-    array([5.07608721, 6.58767389, 5.2575692 , 3.72805014]),
-    array([3.77043329, 2.2126924 , 3.35866552, 3.16660139]),
-    array([6.05415648, 2.63911468, 3.39839388, 4.83522855]),
-    array([6.06406055, 3.4919351 , 1.04547372, 3.42804614]),
-    array([5.59401453, 7.5411467 , 2.00286651, 3.9806937 ]),
-    array([4.17392157, 8.52896014, 2.46282649, 5.01940981])]
-y = array([16.21111616, 17.65333831, 20.98247225, 10.88384095, 16.84887285,
-       14.0120161 , 18.4922333 , 20.42441799])
+[   array([4.04339275, 5.86628992, 1.74890209, 2.73661494]),
+    array([1.59288421, 5.71752665, 5.6873578 , 4.49785405]),
+    array([1.4662224 , 5.00596606, 8.44516935, 4.4863483 ]),
+    array([9.20453347, 4.08041606, 4.99449803, 2.90644366]),
+    array([8.39206021, 5.32914588, 5.07187517, 2.95864672]),
+    array([2.2610787 , 5.33964029, 1.27864658, 4.06030134]),
+    array([9.93680765, 4.58955193, 1.98291014, 4.03245605]),
+    array([4.97555256, 4.91718181, 8.09707079, 7.93621467])]
+y = array([14.33449442, 15.26274315, 17.75886529, 22.04373825, 20.82282076,
+       12.10230154, 19.53976492, 27.62724152])
 </pre>
 </div>
 </div>
@@ -12174,7 +12174,7 @@ That's why the correct way to compute the global metrics is to retrieve from eac
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Simulation-???">Simulation ???<a class="anchor-link" href="#Simulation-???">¶</a></h1><p>In this section are listed some useful details in order to doubtless understand further simulation outputs.</p>
+<h1 id="Simulation-useful-informations">Simulation useful informations<a class="anchor-link" href="#Simulation-useful-informations">¶</a></h1><p>In this section are listed some useful details in order to doubtless understand further simulation outputs.</p>
 <h2 id="Meaning-of-iteration">Meaning of <em>iteration</em><a class="anchor-link" href="#Meaning-of-iteration">¶</a></h2><p>Each node owns a local field <code>iteration</code>. The starting value is 0. Actually iteration equal to $t$ means that the weight vector has been updated $t$ times. A single update of the weight $w_{t+i} = w_t - \alpha \nabla Err$ implies the iteration to increase by one from $t$ to $t+1$.</p>
 <ul>
 <li>"Node $i$ is at iteration $t$" means it has already computed the $t$-th step of the gradient descent method, thus $w_t$ is its the most recent weight vector.</li>
@@ -12269,7 +12269,7 @@ That's why the correct way to compute the global metrics is to retrieve from eac
     <span class="k">return</span> <span class="p">[</span><span class="n">t0</span><span class="p">,</span> <span class="n">tf</span><span class="p">]</span>
 </pre></div>
 <p>The time taken by a node to perform a single gradient step is handled by a random variable $X \sim Exp(\lambda)$ (e.g. exponentially distributed with parameter $\lambda$) where $\mathbb{E}[X] = \frac{1}{\lambda}$. At the moment $\lambda$ is fixed to $1$, so, in this case, the mean time is equal to one too.</p>
-<p>It is not mandatory for you to know all details about how the system actually works.</p>
+<p><em>It is not mandatory for you to know more details about how the system actually works.</em></p>
 
 </div>
 </div>
@@ -12278,7 +12278,8 @@ That's why the correct way to compute the global metrics is to retrieve from eac
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Previous-tests---002-(those-made-until-25/04/18)">Previous tests - 002 (those made until 25/04/18)<a class="anchor-link" href="#Previous-tests---002-(those-made-until-25/04/18)">¶</a></h1>
+<h1 id="Previous-tests---002-(those-made-until-25/04/18)">Previous tests - 002 (those made until 25/04/18)<a class="anchor-link" href="#Previous-tests---002-(those-made-until-25/04/18)">¶</a></h1><p>Outdated, not reported here.</p>
+
 </div>
 </div>
 </div>
@@ -12686,6 +12687,22 @@ holds also for the speed: the cycle is faster than the diam-expander which in tu
 </ul>
 <p>$Z$ reflects the time taken by the slowest node to perform the $(r+1)$-th weight update.</p>
 <p>It is easy to exploit $Z$ to analyze the clique behaviour since $Z$ is exactly the time taken by each node to perform the $(r+1)$-th update of its weight. For other topologies it is not so trivial. Anyway, this is the way I will follow to give significance from a theoretical point of view to results.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Iteration-speed-lower-bound">Iteration speed lower bound<a class="anchor-link" href="#Iteration-speed-lower-bound">¶</a></h3><p>Let $k$ be the degree of a regular dependency graph $G$. $V_e$ is the velocity in terms of iterations per node and per time, so the unit of measurement is $\frac{\text{# iterations}}{\text{time}}$.</p>
+<p>In the worts case the node most advanced in the computation will need to wait for all its neighbours and only then it can start a new iteration.</p>
+<p>If computations are I.I.D (independent and identically distributed) exponential with parameter $\mu$, the per-node iteration rat will be</p>
+<p>$$V_e = \frac{\lambda}{1+\sum_{i=1}^{k}\frac{1}{i}} \sim \frac{\lambda}{\ln k} \text{ for large } k$$</p>
+<h4 id="Comparison-with-exact-calculations-for-the-clique-($k=n-1$)">Comparison with exact calculations for the clique ($k=n-1$)<a class="anchor-link" href="#Comparison-with-exact-calculations-for-the-clique-(%24k=n-1%24)">¶</a></h4><p>$$V = \frac{\lambda}{\sum_{i=1}^{k}\frac{1}{i}} &gt; \frac{\lambda}{1+\sum_{i=1}^{n-1}\frac{1}{i}} = V_e$$</p>
+<h4 id="Why-is-it-a-lower-bound-for-$k=1$">Why is it a lower bound for $k=1$<a class="anchor-link" href="#Why-is-it-a-lower-bound-for-%24k=1%24">¶</a></h4>
+<pre><code>(c) --&gt; (b) --&gt; (a)</code></pre>
+<p><code>a</code> is the most advanced node (e.g. <code>a.iteration</code> $&gt;$ <code>b.iteration</code> and <code>a.iteration</code> $&gt;$ <code>c.iteration</code>), so it is waiting for <code>b</code> to finish its calculations, but actually <code>b</code> already got the required input from <code>c</code>, then, as soon as <code>b</code> finishes with the current computation, both <code>a</code> and <code>b</code> can move to compute to the next step. Then the next iteration will be computed by the most advanced node (it can be either <code>a</code> or <code>b</code>) after $\frac{1}{\lambda} + \frac{1}{2 \lambda}$ and not after $\frac{1}{\lambda} + \frac{1}{\lambda}$ as considered by the lower bound.</p>
 
 </div>
 </div>
