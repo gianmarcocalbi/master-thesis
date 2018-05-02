@@ -1,3 +1,24 @@
 # LINKS to internship Jupyter Notebooks
-Below all hyperlink to jupyter notebooks:
-- [2nd conf-call Nizza-Milano Jupyter notebook](./2nd-conf-call-report.html)
+Below all hyperlinks to jupyter notebooks provided with a short summary of their content:
+- [2nd conf-call Nizza-Milano Jupyter notebook](./2nd-conf-call-report.html): 
+  - change log:
+    - changed training set generator function x domains;
+    - introduced RMSE;
+    - changed how the error is computed: avg weights and then compute the error over the whole training set;
+    - added test descriptor feature (`.descriptor.txt`);
+    - added `setup.pkl`;
+  - simulation useful informations:
+    - the meaning of _iteration_;
+    - how the time taken by a node to perform a task is computed.
+  - test 003:
+    - main changes from test 002:
+      - diam-expander loses one edge;
+      - added root expander;
+      - at the moment more tests on GD than SGD;
+    - explained all simulation parameters;
+    - GD tests with 100, 1k, 10k and 100k samples;
+    - SGD tests with 100 and 1k samples;
+  - theoretical point of view:
+    - how much nodes' degree matters in speed gain;
+    - how much graph's diameter matters in speed gain;
+    - __iteration speed lower bound__;
