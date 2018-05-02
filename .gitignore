@@ -218,3 +218,17 @@ TSWLatexianTemp*
 
 # expex forward references with \gathertags
 *-tags.tex
+
+## Jupyter Notebook
+.ipynb_checkpoints
+.tox
+.DS_Store
+*.swp
+*.map
+.idea/
+/.project
+/.pydevprojects
+.directory
+.ipynb_checkpoints/
+
+*.directory
