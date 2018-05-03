@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8">
-<title>second-conf-call</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
+<title>2nd-conf-call-report</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
 
 <style type="text/css">
@@ -11802,7 +11802,7 @@ div#notebook {
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>2018-05-03 11:27:09.714109
+<pre>2018-05-03 13:48:45.943779
 </pre>
 </div>
 </div>
@@ -11900,7 +11900,7 @@ Let $x=(x_1,...,x_m) \in X$ be a sample of the training set, then the domain of 
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>[1.5217522  0.37032171 3.20532818 3.42111304]
+<pre>[-1.7424861   4.53015352 -4.60758985 -1.77234815]
 </pre>
 </div>
 </div>
@@ -11948,16 +11948,16 @@ Let $x=(x_1,...,x_m) \in X$ be a sample of the training set, then the domain of 
 
 <div class="output_subarea output_stream output_stdout output_text">
 <pre>X = 
-[   array([4.57578398, 4.8597848 , 5.84524961, 4.50962756]),
-    array([6.06718349, 5.10744033, 3.81143073, 6.73813599]),
-    array([6.51719979, 4.70121432, 3.84253792, 4.78657611]),
-    array([5.89926323, 4.72445289, 3.04221289, 6.70864517]),
-    array([3.94224561, 4.88851718, 3.97038567, 5.81359483]),
-    array([4.78317463, 5.16369528, 7.86404166, 7.64435983]),
-    array([3.61169344, 4.96344539, 4.22279082, 3.39601033]),
-    array([6.08068272, 4.6765318 , 5.77800959, 3.36127879])]
-y = array([19.9141326 , 21.88989708, 19.54746137, 19.65112588, 20.38814713,
-       25.43566105, 16.46491996, 21.46620999])
+[   array([4.77833614, 7.36860225, 2.81095161, 5.061575  ]),
+    array([5.70978834, 6.15644843, 5.60742996, 4.14795077]),
+    array([5.28832177, 0.97383719, 6.14507644, 6.74371098]),
+    array([6.21284175, 1.62155212, 5.80012071, 6.17929618]),
+    array([6.20970776, 6.26928531, 9.22879874, 3.82385231]),
+    array([4.44818807, 1.48068228, 1.59727615, 3.30700776]),
+    array([4.29603164, 1.16927103, 3.53813707, 4.254916  ]),
+    array([4.69948944, 6.82542575, 3.07189224, 6.02801216])]
+y = array([20.11061244, 20.84196609, 20.0781015 , 19.22328468, 25.57142474,
+       11.20145126, 12.05033957, 19.92289499])
 </pre>
 </div>
 </div>
@@ -12686,7 +12686,7 @@ holds also for the speed: the cycle is faster than the diam-expander which in tu
 <p>Lets define a new random variable $Z = max\{X_i : 1 \leq i \leq n\}$. $Z$ is the time taken by the slowest node to complete the $(r+1)$-th update of its weight vector, where:</p>
 <ul>
 <li>$P(Z \leq z) = \prod_{i=1}^{n} P(X_i \leq z) = (1-e^{-t})^n$;</li>
-<li>$\mathbb{E}[Z] = \prod_{i=1}^{n} \mathbb{E}[X_i] = (\frac{1}{\lambda})^n = 1$.</li>
+<li>$\mathbb{E}[Z] = \frac{1}{\lambda} \sum_{i=1}^{n} \frac{1}{i}$.</li>
 </ul>
 <p>$Z$ reflects the time taken by the slowest node to perform the $(r+1)$-th weight update.</p>
 <p>It is easy to exploit $Z$ to analyze the clique behaviour since $Z$ is exactly the time taken by each node to perform the $(r+1)$-th update of its weight. For other topologies it is not so trivial. Anyway, this is the way I will follow to give significance from a theoretical point of view to results. <em>Further considerations will be provided in the next report.</em></p>
