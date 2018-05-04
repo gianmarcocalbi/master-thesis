@@ -1,0 +1,651 @@
+18 Stochastic Gradient Descent Tricks
+Léon Bottou
+Microsoft Research, Redmond, WA leon@bottou.org
+http://leon.bottou.org
+
+Abstract. Chapter 1 strongly advocates the stochastic back-propagation method to train neural networks. This is in fact an instance of a more general technique called stochastic gradient descent (SGD). This chapter provides background material, explains why SGD is a good learning algorithm when the training set is large, and provides useful recommendations.
+
+18.1 Introduction
+Chapter 1 strongly advocates the stochastic back-propagation method to train neural networks. This is in fact an instance of a more general technique called stochastic gradient descent (SGD). This chapter provides background material, explains why SGD is a good learning algorithm when the training set is large, and provides useful recommendations.
+
+18.2 What Is Stochastic Gradient Descent?
+
+Let us ﬁrst consider a simple supervised learning setup. Each example z is a pair (x, y) composed of an arbitrary input x and a scalar output y. We consider a loss function (yˆ, y) that measures the cost of predicting yˆ when the actual answer is y, and we choose a family F of functions fw(x) parametrized by a weight vector w. We seek the function f ∈ F that minimizes the loss Q(z, w) = (fw(x), y) averaged on the examples. Although we would like to average over the unknown distribution dP (z) that embodies the Laws of Nature, we must often settle for computing the average on a sample z1 . . . zn.
+
+E(f ) =
+
+(f (x), y) dP (z)
+
+1n
+
+En(f ) = n
+
+(f (xi), yi)
+
+i=1
+
+(18.1)
+
+The empirical risk En(f ) measures the training set performance. The expected risk E(f ) measures the generalization performance, that is, the expected performance on future examples. The statistical learning theory [25] justiﬁes minimizing the empirical risk instead of the expected risk when the chosen family F is suﬃciently restrictive.
+
+G. Montavon et al. (Eds.): NN: Tricks of the Trade, 2nd edn., LNCS 7700, pp. 421–436, 2012. c Springer-Verlag Berlin Heidelberg 2012
+
+422 L. Bottou
+
+18.2.1 Gradient Descent
+
+It has often been proposed (e.g., [18]) to minimize the empirical risk En(fw) using gradient descent (GD). Each iteration updates the weights w on the basis of the gradient of En(fw) ,
+
+1n wt+1 = wt − γ n ∇w Q(zi, wt) ,
+i=1
+
+(18.2)
+
+where γ is an adequately chosen learning rate. Under suﬃcient regularity
+assumptions, when the initial estimate w0 is close enough to the optimum, and when the learning rate γ is suﬃciently small, this algorithm achieves linear convergence [6], that is, − log ρ ∼ t, where ρ represents the residual error.1
+Much better optimization algorithms can be designed by replacing the scalar learning rate γ by a positive deﬁnite matrix Γt that approaches the inverse of the Hessian of the cost at the optimum :
+
+1n wt+1 = wt − Γt n ∇w Q(zi, wt) .
+i=1
+
+(18.3)
+
+This second order gradient descent (2GD) is a variant of the well known Newton algorithm. Under suﬃciently optimistic regularity assumptions, and provided that w0 is suﬃciently close to the optimum, second order gradient descent achieves quadratic convergence. When the cost is quadratic and the scaling matrix Γ is exact, the algorithm reaches the optimum after a single iteration. Otherwise, assuming suﬃcient smoothness, we have − log log ρ ∼ t.
+
+18.2.2 Stochastic Gradient Descent
+
+The stochastic gradient descent (SGD) algorithm is a drastic simpliﬁcation. Instead of computing the gradient of En(fw) exactly, each iteration estimates this gradient on the basis of a single randomly picked example zt :
+
+wt+1 = wt − γt∇w Q(zt, wt) .
+
+(18.4)
+
+The stochastic process { wt, t = 1, . . . } depends on the examples randomly picked at each iteration. It is hoped that (18.4) behaves like its expectation (18.2) despite the noise introduced by this simpliﬁed procedure.
+Since the stochastic algorithm does not need to remember which examples were visited during the previous iterations, it can process examples on the ﬂy in a deployed system. In such a situation, the stochastic gradient descent directly optimizes the expected risk, since the examples are randomly drawn from the ground truth distribution.
+
+1 For mostly historical reasons, linear convergence means that the residual error asymptotically decreases exponentially, and quadratic convergence denotes an even faster asymptotic convergence. Both convergence rates are considerably faster than the SGD convergence rates discussed in section 18.2.3.
+
+18. Stochastic Gradient Descent Tricks 423
+
+Table 18.1. Stochastic gradient algorithms for various learning systems
+
+Loss
+
+Adaline [26]
+
+Qadaline
+
+=
+
+1 2
+
+y−w
+
+Φ(x) 2
+
+Features Φ(x) ∈ Rd, Classes y = ±1
+
+Perceptron [17]
+Qperceptron = max{0, −y w Φ(x)} Features Φ(x) ∈ Rd, Classes y = ±1
+
+K-Means [12]
+
+Qkmeans
+
+=
+
+min k
+
+1 2
+
+(z
+
+−
+
+wk )2
+
+Data z ∈ Rd
+
+Centroids w1 . . . wk ∈ Rd Counts n1 . . . nk ∈ N, initially 0
+
+SVM [5]
+Qsvm = λw2 + max{0, 1 − y w Φ(x)} Features Φ(x) ∈ Rd, Classes y = ±1 Hyperparameter λ > 0
+
+Lasso [23]
+
+Qlasso
+
+=
+
+λ|w|1
+
++
+
+1 2
+
+y−w
+
+Φ(x)
+
+2
+
+w = (u1 − v1, . . . , ud − vd)
+
+Features Φ(x) ∈ Rd, Classes y = ±1
+
+Hyperparameter λ > 0
+
+Stochastic gradient algorithm w ← w + γt yt − w Φ(xt) Φ(xt)
+
+w ← w + γt
+
+yt Φ(xt) if yt w Φ(xt) ≤ 0
+
+0
+
+otherwise
+
+k∗ = arg mink(zt − wk)2
+
+nk∗ ← nk∗ + 1
+
+wk∗
+
+←
+
+wk∗
+
++
+
+1 nk∗
+
+(zt
+
+− wk∗ )
+
+(counts provide optimal learning rates!)
+
+w ← w − γt
+
+λw if yt w Φ(xt) > 1, λw − yt Φ(xt) otherwise.
+
+ui ← ui − γt λ − (yt − w Φ(xt))Φi(xt) + vi ← vi − γt λ + (yt − w Φ(xt))Φi(xt) + with notation [x]+ = max{0, x}.
+
+Table 18.1 illustrates stochastic gradient descent algorithms for a number of classic machine learning schemes. The stochastic gradient descent for the Perceptron, for the Adaline, and for k-Means match the algorithms proposed in the original papers. The SVM and the Lasso were ﬁrst described with traditional optimization techniques. Both Qsvm and Qlasso include a regularization term controlled by the hyper-parameter λ. The K-means algorithm converges to a local minimum because Qkmeans is nonconvex. On the other hand, the proposed update rule uses second order learning rates that ensure a fast convergence. The proposed Lasso algorithm represents each weight as the diﬀerence of two positive variables. Applying the stochastic gradient rule to these variables and enforcing their positivity leads to sparser solutions.
+18.2.3 The Convergence of Stochastic Gradient Descent
+The convergence of stochastic gradient descent has been studied extensively in the stochastic approximation literature. Convergence results usually require decreasing learning rates satisfying the conditions t γt2 < ∞ and t γt = ∞. The Robbins-Siegmund theorem [16] provides the means to establish almost sure convergence under surprisingly mild conditions [3], including cases where the loss function is non smooth.
+
+424 L. Bottou
+
+The convergence speed of stochastic gradient descent is in fact limited by the noisy approximation of the true gradient. When the learning rates decrease too slowly, the variance of the parameter estimate wt decreases equally slowly. When the learning rates decrease too quickly, the expectation of the parameter estimate wt takes a very long time to approach the optimum.
+
+– When the Hessian matrix of the cost function at the optimum is strictly
+positive deﬁnite, the best convergence speed is achieved using learning rates γt ∼ t−1 (e.g. [14]). The expectation of the residual error then decreases with similar speed, that is, E(ρ) ∼ t−1. These theoretical convergence rates are frequently observed in practice.
+– When we relax these regularity assumptions, the theory suggests slower asymptotic convergence rates, typically like E(ρ) ∼ t−1/2 (e.g., [28]). In practice, the convergence only slows down during the ﬁnal stage of the
+optimization process. This may not matter in practice because one often
+stops the optimization before reaching this stage (see section 18.3.1.)
+
+Second order stochastic gradient descent (2SGD) multiplies the gradients by a positive deﬁnite matrix Γt approaching the inverse of the Hessian :
+
+wt+1 = wt − γtΓt∇w Q(zt, wt) .
+
+(18.5)
+
+Unfortunately, this modiﬁcation does not reduce the stochastic noise and
+therefore does not signiﬁcantly improve the variance of wt. Although constants are improved, the expectation of the residual error still decreases like t−1, that is, E(ρ) ∼ t−1 at best, (e.g. [1], appendix).
+Therefore, as an optimization algorithm, stochastic gradient descent is asymp-
+totically much slower than a typical batch algorithm. However, this is not the
+whole story. . .
+
+18.3 When to Use Stochastic Gradient Descent?
+During the last decade, the data sizes have grown faster than the speed of processors. In this context, the capabilities of statistical machine learning methods is limited by the computing time rather than the sample size. The analysis presented in this section shows that stochastic gradient descent performs very well in this context.
+
+Use stochastic gradient descent when training time is the bottleneck.
+
+18.3.1 The Trade-Oﬀs of Large Scale Learning
+Let f ∗ = arg minf E(f ) be the best possible prediction function. Since we seek the prediction function from a parametrized family of functions F , let
+
+18. Stochastic Gradient Descent Tricks 425
+
+fF∗ = arg minf∈F E(f ) be the best function in this family. Since we optimize
+the empirical risk instead of the expected risk, let fn = arg minf∈F En(f ) be the empirical optimum. Since this optimization can be costly, let us stop
+the algorithm when it reaches a solution f˜n that minimizes the objective function with a predeﬁned accuracy En(f˜n) < En(fn) + ρ. The excess error E = E E(f˜n) − E(f ∗) can then be decomposed in three terms [2] :
+
+E = E E(fF∗ ) − E(f ∗) + E E(fn) − E(fF∗ ) + E E(f˜n) − E(fn) .
+
+Eapp
+
+Eest
+
+Eopt
+
+(18.6)
+
+– The approximation error Eapp = E E(fF∗ ) − E(f ∗) measures how closely functions in F can approximate the optimal solution f ∗. The approximation error can be reduced by choosing a larger family of functions.
+– The estimation error Eest = E E(fn) − E(fF∗ ) measures the eﬀect of minimizing the empirical risk En(f ) instead of the expected risk E(f ). The estimation error can be reduced by choosing a smaller family of functions or by increasing the size of the training set.
+– The optimization error Eopt = E E(f˜n) − E(fn) measures the impact of the approximate optimization on the expected risk. The optimization error can be reduced by running the optimizer longer. The additional computing time depends of course on the family of function and on the size of the training set.
+
+Given constraints on the maximal computation time Tmax and the maximal training set size nmax, this decomposition outlines a trade-oﬀ involving the size of the family of functions F , the optimization accuracy ρ, and the number of examples n eﬀectively processed by the optimization algorithm.
+
+min E = Eapp + Eest + Eopt subject to
+F ,ρ,n
+
+n ≤ nmax T (F , ρ, n) ≤ Tmax
+
+(18.7)
+
+Two cases should be distinguished:
+
+– Small-scale learning problems are ﬁrst constrained by the maximal number of examples. Since the computing time is not an issue, we can reduce the optimization error Eopt to insigniﬁcant levels by choosing ρ arbitrarily small, and we can minimize the estimation error Eest by choosing n = nmax. We then recover the approximation-estimation trade-oﬀ that has been widely studied in statistics and in learning theory.
+– Large-scale learning problems are constrained by the maximal computing time, usually because the supply of training examples is very large. Approximate optimization can achieve better expected risk because more training examples can be processed during the allowed time. The speciﬁcs depend on the computational properties of the chosen optimization algorithm.
+
+426 L. Bottou
+
+18.3.2 Asymptotic Analysis of the Large-Scale Case
+Solving (18.7) in the asymptotic regime amounts to ensuring that the terms of the decomposition (18.6) decrease at similar rates. Since the asymptotic convergence rate of the excess error (18.6) is the convergence rate of its slowest term, the computational eﬀort required to make a term decrease faster would be wasted.
+For simplicity, we assume in this section that the Vapnik-Chervonenkis dimensions of the families of functions F are bounded by a common constant. We also assume that the optimization algorithms satisfy all the assumptions required to achieve the convergence rates discussed in section 18.2. Similar analyses can be carried out for speciﬁc algorithms under weaker assumptions (e.g. [22]).
+A simple application of the uniform convergence results of [25] gives then the upper bound
+
+E = Eapp + Eest + Eopt = Eapp + O
+
+log n +ρ .
+n
+
+Unfortunately the convergence rate of this bound is too pessimistic. Faster convergence occurs when the loss function has strong convexity properties [9] or when the data distribution satisﬁes certain assumptions [24]. The equivalence
+
+E = Eapp + Eest + Eopt ∼ Eapp +
+
+log n α +ρ,
+n
+
+for some α ∈ 1 , 1 , (18.8) 2
+
+provides a more realistic view of the asymptotic behavior of the excess error (e.g. [13, 4]). Since the three components of the excess error should decrease at the same rate, the solution of the trade-oﬀ problem (18.7) must then obey the multiple asymptotic equivalences
+
+E ∼ Eapp ∼ Eest ∼ Eopt ∼
+
+log n α ∼ ρ.
+n
+
+(18.9)
+
+Table 18.2 summarizes the asymptotic behavior of the four gradient algorithms described in section 18.2. The ﬁrst three rows list the computational cost of each iteration, the number of iterations required to reach an optimization accuracy ρ, and the corresponding computational cost. The last row provides a more interesting measure for large scale machine learning purposes. Assuming we operate at the optimum of the approximation-estimation-optimization tradeoﬀ (18.7), this line indicates the computational cost necessary to reach a predeﬁned value of the excess error, and therefore of the expected risk. This is computed by applying the equivalences (18.9) to eliminate the variables n and ρ from the third row results.2
+Although the stochastic gradient algorithms, SGD and 2SGD, are clearly the worst optimization algorithms (third row), they need less time than the
+2 Note that ε1/α ∼ log(n)/n implies both α−1 log ε ∼ log log(n) − log(n) ∼ − log(n) and n ∼ ε−1/α log n. Replacing log(n) in the latter gives n ∼ ε−1/α log(1/ε).
+
+18. Stochastic Gradient Descent Tricks 427
+
+Table 18.2. Asymptotic equivalents for various optimization algorithms: gradient descent (GD, eq. 18.2), second order gradient descent (2GD, eq. 18.3), stochastic gradient descent (SGD, eq. 18.4), and second order stochastic gradient descent (2SGD, eq. 18.5). Although they are the worst optimization algorithms, SGD and 2SGD achieve the fastest convergence speed on the expected risk. They diﬀer only by constant factors not shown in this table, such as condition numbers and weight vector dimension.
+
+GD
+
+Time per iteration :
+
+n
+
+Iterations to accuracy ρ :
+
+log
+
+1 ρ
+
+Time to accuracy ρ :
+
+n
+
+log
+
+1 ρ
+
+Time to excess error E :
+
+1 E 1/α
+
+2
+log
+
+1
+
+E
+
+2GD
+
+n
+
+log
+
+log
+
+1 ρ
+
+n
+
+log
+
+log
+
+1 ρ
+
+1 E 1/α
+
+log 1
+E
+
+log log 1
+E
+
+SGD 1
+1/ρ 1/ρ
+1/E
+
+2SGD 1
+1/ρ 1/ρ
+1/E
+
+other algorithms to reach a predeﬁned expected risk (fourth row). Therefore, in the large scale setup, that is, when the limiting factor is the computing time rather than the number of examples, the stochastic learning algorithms performs asymptotically better !
+18.4 General Recommendations
+The rest of this contribution provides a series of recommendations for using stochastic gradient algorithms. Although some of these recommendations seem trivial, experience has shown again and again how easily they can be overlooked.
+18.4.1 Preparing the Data
+Randomly shuﬄe the training examples.
+Although the theory calls for picking examples randomly, it is usually faster to zip sequentially through the training set. But this does not work if the examples are grouped by class or come in a particular order. Randomly shuﬄing the examples eliminates this source of problems. Section 1.4.2 provides an additional discussion.
+Use preconditioning techniques.
+Stochastic gradient descent is a ﬁrst-order algorithm and therefore suﬀers dramatically when it reaches an area where the Hessian is ill-conditioned. Fortunately, many simple preprocessing techniques can vastly improve the situation. Sections 1.4.3 and 1.5.3 provide many useful tips.
+
+428 L. Bottou
+18.4.2 Monitoring and Debugging
+Monitor both the training cost and the validation error.
+Since stochastic gradient descent is useful when the training time is the primary concern, we can spare some training examples to build a decent validation set. It is important to periodically evaluate the validation error during training because we can stop training when we observe that the validation error has not improved in a long time.
+It is also important to periodically compute the training cost because stochastic gradient descent is an iterative optimization algorithm. Since the training cost is exactly what the algorithm seeks to optimize, the training cost should be generally decreasing.
+A good approach is to repeat the following operations:
+1. Zip once through the shuﬄed training set and perform the stochastic gradient descent updates (18.4).
+2. With an additional loop over the training set, compute the training cost. Training cost here means the criterion that the algorithm seeks to optimize. You can take advantage of the loop to compute other metrics, but the training cost is the one to watch
+3. With an additional loop over the validation set, to compute the validation set error. Error here means the performance measure of interest, such as the classiﬁcation error. You can also take advantage of this loop to cheaply compute other metrics.
+Computing the training cost and the validation error represent a signiﬁcant computational eﬀort because it requires additional passes over the training and validation data. But this beats running blind.
+Check the gradients using ﬁnite diﬀerences.
+When the computation of the gradients is slightly incorrect, stochastic gradient descent often works slowly and erratically. This has led many to believe that slow and erratic is the normal operation of the algorithm.
+During the last twenty years, I have often been approached for advice in setting the learning rates γt of some rebellious stochastic gradient descent program. My advice is to forget about the learning rates and check that the gradients are computed correctly. This reply is biased because people who compute the gradients correctly quickly ﬁnd that setting small enough learning rates is easy. Those who ask usually have incorrect gradients. Carefully checking each line of the gradient computation code is the wrong way to check the gradients. Use ﬁnite diﬀerences:
+
+18. Stochastic Gradient Descent Tricks 429
+1. Pick an example z. 2. Compute the loss Q(z, w) for the current w. 3. Compute the gradient g = ∇w Q(z, w). 4. Apply a slight perturbation w = w + δ. For instance, change a single weight
+by a small increment, or use δ = −γg with γ small enough. 5. Compute the new loss Q(z, w ) and verify that Q(z, w ) ≈ Q(z, w) + δg .
+This process can be automated and should be repeated for many examples z, many perturbations δ, and many initial weights w. Flaws in the gradient computation tend to only appear when peculiar conditions are met. It is not uncommon to discover such bugs in SGD code that has been quietly used for years.
+Experiment with the learning rates γt using a small sample of the training set.
+
+The mathematics of stochastic gradient descent are amazingly independent of the training set size. In particular, the asymptotic SGD convergence rates [14] are independent from the sample size. Therefore, assuming the gradients are correct, the best way to determine the correct learning rates is to perform experiments using a small but representative sample of the training set. Because the sample is small, it is also possible to run traditional optimization algorithms on this same dataset in order to obtain reference point and set the training cost target.
+When the algorithm performs well on the training cost of the small dataset, keep the same learning rates, and let it soldier on the full training set. Expect the validation performance to plateau after a number of epochs roughly comparable to the number of epochs needed to reach this point on the small training set.
+
+18.5 Linear Models with L2 Regularization
+
+This section provides speciﬁc recommendations for training large linear models with L2 regularization. The training objective of such models has the form
+
+En(w)
+
+=
+
+λ 2
+
+w 2+ 1 n
+
+n
+
+(ytwxt)
+
+i=1
+
+(18.10)
+
+where yt = ±1, and where the function (m) is convex. The corresponding stochastic gradient update is then obtained by approximating the derivative of the sum by the derivative of the loss with respect to a single example
+
+wt+1 = (1 − γtλ)wt − γtytxt (ytwtxt)
+
+(18.11)
+
+Examples:
+
+– Support Vector Machines (SVM) use the non diﬀerentiable hinge loss [5] :
+
+(m) = max{0, 1 − m} .
+
+430 L. Bottou
+– It is often more convenient in the linear case to use the log-loss: (m) = log(1 + e−m) .
+The diﬀerentiable log-loss is more suitable for the gradient algorithms discussed here. This choice leads to a logistic regression algorithm: probability estimates can be derived using the logistic function:
+1 P (y = +1|x) ≈ 1 + e−wx . – All statistical models with linear parametrization are in fact amenable to stochastic gradient descent, using the log-likelihood of the model as the loss function Q(z, w). For instance, results for Conditional Random Fields (CRF) [8] are reported in Sec. 18.5.4.
+18.5.1 Sparsity
+Leverage the sparsity of the training examples {xt}. – Represent wt as a product stWt where st ∈ IR.
+The training examples often are very high dimensional vectors with only a few non zero coeﬃcients. The stochastic gradient update (18.11)
+wt+1 = (1 − γtλ)wt − γtytxt (ytwtxt)
+is then inconvenient because it ﬁrst rescales all coeﬃcients of vector w by factor (1 − γtλ). In contrast, the rest of the update only involves the weight coeﬃcients corresponding to a nonzero coeﬃcient in the pattern xt.
+Expressing the vector wt as the product stWt, where s is a scalar, provides a workaround [21]. The stochastic gradient update (18.11) can then be divided into operations whose complexity scales with the number of nonzero terms in xt:
+gt = (ytstWtxt) , st+1 = (1 − γtλ)st , Wt+1 = Wt − γtytgtxt/st+1 .
+18.5.2 Learning Rates
+Use learning rates of the form γt = γ0 (1 + γ0λt)−1 – Determine the best γ0 using a small training data sample.
+
+18. Stochastic Gradient Descent Tricks 431
+When the Hessian matrix of the cost function at the optimum is strictly positive, the best convergence speed is achieved using learning rates of the form (λmint)−1 where λmin is the smallest eigenvalue of the Hessian [14]. The theoretical analysis also shows that overestimating λmin by more than a factor two leads to very slow convergence. Although we do not know the exact value of λmin, the L2 regularization term in the training objective function means that λmin ≥ λ. Therefore we can safely use learning rates that asymptotically decrease like (λt)−1.
+Unfortunately, simply using γt = (λt)−1 leads to very large learning rates in the beginning of the optimization. It is possible to use an additional projection step [21] to contain the damage until the learning rates reach reasonable values. However it is simply better to start with reasonable learning rates. The formula γt = γ0(1 + γ0λt)−1 ensures that the learning rates γt start from a predeﬁned value γ0 and asymptotically decrease like (λt)−1.
+The most robust approach is to determine the best γ0 as explained earlier, using a small sample of the training set. This is justiﬁed because the asymptotic SGD convergence rates [14] are independent from the sample size. In order to make the method more robust, I often use a γ0 slightly smaller than the best value observed on the small training sample.
+Such learning rates have been found to be eﬀective in situations that far exceed the scope of this particular analysis. For instance, they work well with nondiﬀerentiable loss functions such as the hinge loss [21]. They also work well when one adds an unregularized bias term to the model. However it is then wise to use smaller learning rates for the bias term itself.
+
+18.5.3 Averaged Stochastic Gradient Descent
+
+The stochastic gradient descent!averaged SGD (ASGD) algorithm [19] performs the normal stochastic gradient update (18.4) and computes the average
+
+1
+
+t
+
+w¯t = t − t0
+
+wt .
+i=t0 +1
+
+This average can be computed eﬃciently using a recursive formula. For instance, in the case of the L2 regularized training objective (18.10), the following weight updates implement the ASGD algorithm:
+
+wt+1 = (1 − γtλ)wt − γtytxt (ytwtxt) w¯t+1 = w¯t + μt(wt+1 − w¯t)
+
+with the averaging rate μt = 1/max{1, t − t0} .
+When one uses learning rates γt that decrease slower than t−1, the theoretical analysis of ASGD shows that the training error En(w¯t) decreases like t−1 with the optimal constant [15]. This is as good as the second order stochastic gradient descent (2SGD) for a fraction of the computational cost of (18.5).
+
+432 L. Bottou
+Unfortunately, ASGD typically starts more slowly than the plain SGD and can take a long time to reach the optimal asymptotic convergence speed. Although an adequate choice of the learning rates helps [27], the problem worsens when the dimension d of the inputs xt increases. Unfortunately, there are no clear guidelines for selecting the time t0 that determines when we engage the averaging process.
+Try averaged stochastic gradient with – Learning rates γt = γ0(1 + γ0λt)−3/4 – Averaging rates μt = 1/ max{1, t − d, t − n}
+Similar to the trick explained in Sec. 18.5.1, there is an eﬃcient method to implement averaged stochastic gradient descent for sparse training data. The idea is to represent the variables wt and w¯t as
+wt = stWt w¯t = (At + αtWt)/βt
+where ηt, αt and βt are scalars. The average stochastic gradient update equations can then be rewritten in the manner that only involve scalars or sparse operations [27] :
+gt = (ytstWtxt) , st+1 = (1 − γtλ)st Wt+1 = Wt − γtytxtgt/st+1 At+1 = At + γtαtytxtgt/st+1 βt+1 = βt/(1 − μt) αt+1 = αt + μtβt+1st+1
+18.5.4 Experiments
+This section brieﬂy reports experimental results illustrating the actual performance of SGD and ASGD on a variety of linear systems. The source code is available at http://leon.bottou.org/projects/sgd. All learning rates were determined as explained in section 18.5.2.
+Figure 18.1 reports results achieved using SGD for a linear SVM trained for the recognition of the CCAT category in the RCV1 dataset [10] using both the hinge loss and the log loss. The training set contains 781,265 documents represented by 47,152 relatively sparse TF/IDF features. SGD runs considerably faster than either the standard SVM solvers SVMLight and SVMPerf [7] or the super-linear optimization algorithm TRON [11].
+Figure 18.2 reports results achieved for a linear model trained on the ALPHA task of the 2008 Pascal Large Scale Learning Challenge using the squared hinge
+
+18. Stochastic Gradient Descent Tricks 433
+
+Algorithm
+
+Time Test Error
+
+Hinge loss SVM, λ = 10−4.
+
+SVMLight
+
+23,642 s. 6.02 %
+
+SVMPerf
+
+66 s. 6.03 %
+
+SGD
+
+1.4 s. 6.02 %
+
+Log loss SVM, λ = 10−5.
+
+TRON (-e0.01)
+
+30 s.
+
+5.68 %
+
+TRON (-e0.001) 44 s.
+
+5.70 %
+
+SGD
+
+2.3 s. 5.66 %
+
+0.25 Expected risk 0.20
+Training time (secs) 100
+50
+
+SGD TRON
+
+0.1 0.01 0.001 0.0001 1e−05 1e−06 1e−07 1e−08 1e−09 Optimization accuracy (trainingCost−optimalTrainingCost)
+
+Fig. 18.1. Results achieved with a L2 regularized linear model trained on the RCV1 task using both the hinge loss and the log loss. The lower half of the plot shows the time required by SGD and TRON to reach a predeﬁned accuracy ρ on the log loss task. The upper half shows that the expected risk stops improving long before the super-linear optimization algorithm TRON overcomes SGD.
+
+Expected risk Test Error (%)
+
+0.40
+
+SGD
+
+SGDQN
+
+0.38
+
+ASGD
+
+0.36
+
+0.34
+
+0.32
+
+0.30
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+Number of epochs
+
+27.0
+
+SGD
+
+SGDQN
+
+26.0
+
+ASGD
+
+25.0
+
+24.0
+
+23.0
+
+22.0
+
+21.0
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+Number of epochs
+
+Fig. 18.2. Comparison of the test set performance of SGD, SGDQN, and ASGD for a L2 regularized linear model trained with the squared hinge loss on the ALPHA task of the 2008 Pascal Large Scale Learning Challenge. ASGD nearly reaches the optimal expected risk after a single pass.
+
+loss (m) = max{0, 1 − m}2. For reference, we also provide the results achieved by the SGDQN algorithm [1] which was one of the winners of this competition, and works by adapting a separate learning rate for each weight. The training set contains 100,000 patterns represented by 500 centered and normalized variables. Performances measured on a separate testing set are plotted against the number of passes over the training set. ASGD achieves near optimal results after one epoch only.
+Figure 18.3 reports results achieved using SGD, SGDQN, and ASGD for a CRF [8] trained on the CONLL 2000 Chunking task [20]. The training set contains 8936 sentences for a 1.68 × 106 dimensional parameter space. Performances measured on a separate testing set are plotted against the number of passes over the training set. SGDQN appears more attractive because ASGD
+
+434 L. Bottou
+
+5400 5300 5200 5100 5000 4900 4800 4700 4600 4500 4400
+0
+
+Test loss
+
+SGD SGDQN ASGD
+
+5
+
+10
+
+15
+
+epochs
+
+94 93.8 93.6 93.4 93.2
+93 92.8 92.6 92.4 92.2
+92 0
+
+Test FB1 score
+
+SGD SGDQN ASGD
+
+5
+
+10
+
+15
+
+epochs
+
+Fig. 18.3. Comparison of the test set performance of SGD, SGDQN, and ASGD on a L2 regularized CRF trained on the CONLL Chunking task. On this task, SGDQN appears more attractive because ASGD does not fully reach its asymptotic performance.
+
+does not reach its asymptotic performance. All three algorithms reach the best test set performance in a couple minutes. The standard CRF L-BFGS optimizer takes 72 minutes to compute an equivalent solution.
+18.6 Conclusion
+Stochastic gradient descent and its variants are versatile techniques that have proven invaluable as a learning algorithms for large datasets. The best advice for a successful application of these techniques is (i) to perform small-scale experiments with subsets of the training data, and (ii) to pay a ruthless attention to the correctness of the gradient computation.
+References
+[1] Bordes, A., Bottou, L., Gallinari, P.: SGD-QN: Careful quasi-Newton stochastic gradient descent. Journal of Machine Learning Research 10, 1737–1754 (2009); with erratum, JMLR 11, 2229–2240 (2010)
+[2] Bottou, L., Bousquet, O.: The tradeoﬀs of large scale learning. In: Platt, J., Koller, D., Singer, Y., Roweis, S. (eds.) Advances in Neural Information Processing Systems, vol. 20, pp. 161–168. NIPS Foundation (2008), http://books.nips.cc
+[3] Bottou, L.: Online algorithms and stochastic approximations. In: Saad, D. (ed.) Online Learning and Neural Networks. Cambridge University Press, Cambridge (1998)
+[4] Bousquet, O.: Concentration Inequalities and Empirical Processes Theory Applied to the Analysis of Learning Algorithms. Ph.D. thesis, Ecole Polytechnique, Palaiseau, France (2002)
+[5] Cortes, C., Vapnik, V.: Support-vector network. Machine Learning 20(3), 273–297 (1995)
+[6] Dennis, J., Schnabel, R.B.: Numerical Methods For Unconstrained Optimization and Nonlinear Equations. Prentice-Hall, Inc., Englewood Cliﬀs (1983)
+
+18. Stochastic Gradient Descent Tricks 435
+[7] Joachims, T.: Training linear SVMs in linear time. In: Proceedings of the 12th ACM SIGKDD International Conference, New York (2006)
+[8] Laﬀerty, J.D., McCallum, A., Pereira, F.C.N.: Conditional random ﬁelds: Probabilistic models for segmenting and labeling sequence data. In: Brodley, C.E., Danyluk, A.P. (eds.) Proceedings of the Eighteenth International Conference on Machine Learning (ICML), pp. 282–289. Morgan Kaufmann, Williams College (2001)
+[9] Lee, W.S., Bartlett, P.L., Williamson, R.C.: The importance of convexity in learning with squared loss. IEEE Transactions on Information Theory 44(5), 1974–1980 (1998)
+[10] Lewis, D.D., Yang, Y., Rose, T.G., Li, F.: RCV1: A new benchmark collection for text categorization research. Journal of Machine Learning Research 5, 361–397 (2004)
+[11] Lin, C.J., Weng, R.C., Keerthi, S.S.: Trust region newton methods for large-scale logistic regression. In: Ghahramani, Z. (ed.) Proc. Twenty-Fourth International Conference on Machine Learning (ICML), pp. 561–568. ACM (2007)
+[12] MacQueen, J.: Some methods for classiﬁcation and analysis of multivariate observations. In: LeCam, L.M., Neyman, J. (eds.) Proceedings of the Fifth Berkeley Symposium on Mathematics, Statistics, and Probabilities, vol. 1, pp. 281–297. University of California Press, Berkeley (1967)
+[13] Massart, P.: Some applications of concentration inequalities to statistics. Annales de la Faculté des Sciences de Toulouse series 6 9(2), 245–303 (2000)
+[14] Murata, N.: A statistical study of on-line learning. In: Saad, D. (ed.) Online Learning and Neural Networks. Cambridge University Press, Cambridge (1998)
+[15] Polyak, B.T., Juditsky, A.B.: Acceleration of stochastic approximation by averaging. SIAM J. Control Optim. 30(4), 838–855 (1992)
+[16] Robbins, H., Siegmund, D.: A convergence theorem for non negative almost supermartingales and some applications. In: Rustagi, J.S. (ed.) Optimizing Methods in Statistics. Academic Press (1971)
+[17] Rosenblatt, F.: The perceptron: A perceiving and recognizing automaton. Tech. Rep. 85-460-1, Project PARA, Cornell Aeronautical Lab (1957)
+[18] Rumelhart, D.E., Hinton, G.E., Williams, R.J.: Learning internal representations by error propagation. In: Parallel Distributed Processing: Explorations in the Microstructure of Cognition, vol. I, pp. 318–362. Bradford Books, Cambridge (1986)
+[19] Ruppert, D.: Eﬃcient estimations from a slowly convergent robbins-monro process. Tech. Rep. 781, Cornell University Operations Research and Industrial Engineering (1988)
+[20] Sang, E.F.T.K., Buchholz, S.: Introduction to the CoNLL-2000 shared task: Chunking. In: Cardie, C., Daelemans, W., Nedellec, C., Tjong Kim Sang, E.F. (eds.) Proceedings of CoNLL 2000 and LLL 2000, Lisbon, Portugal, pp. 127–132 (2000)
+[21] Shalev-Shwartz, S., Singer, Y., Srebro, N.: Pegasos: Primal estimated subgradient solver for SVM. In: Proc. 24th Intl. Conf. on Machine Learning (ICML 2007), pp. 807–814. ACM (2007)
+[22] Shalev-Shwartz, S., Srebro, N.: SVM optimization: inverse dependence on training set size. In: Proceedings of the 25th International Machine Learning Conference (ICML 2008), pp. 928–935. ACM (2008)
+[23] Tibshirani, R.: Regression shrinkage and selection via the lasso. Journal of the Royal Statistical Society (Series B) 58, 267–288 (1996)
+[24] Tsybakov, A.B.: Optimal aggregation of classiﬁers in statistical learning. Annals of Statististics 32(1) (2004)
+
+436 L. Bottou
+[25] Vapnik, V.N., Chervonenkis, A.Y.: On the uniform convergence of relative frequencies of events to their probabilities. Theory of Probability and its Applications 16(2), 264–280 (1971)
+[26] Widrow, B., Hoﬀ, M.E.: Adaptive switching circuits. In: IRE WESCON Conv. Record, Part 4, pp. 96–104 (1960)
+[27] Xu, W.: Towards optimal one pass large scale learning with averaged stochastic gradient descent (2011), http://arxiv.org/abs/1107.2490
+[28] Zinkevich, M.: Online convex programming and generalized inﬁnitesimal gradient ascent. In: Proc. Twentieth International Conference on Machine Learning (2003)
+

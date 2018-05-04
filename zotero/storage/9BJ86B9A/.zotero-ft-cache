@@ -1,0 +1,768 @@
+ASAP: Asynchronous Approximate Data-Parallel Computation
+Asim Kadav and Erik Kruus NEC Labs, Princeton
+
+arXiv:1612.08608v1 [cs.DC] 27 Dec 2016
+
+Abstract
+Emerging workloads, such as graph processing and machine learning are approximate because of the scale of data involved and the stochastic nature of the underlying algorithms. These algorithms are often distributed over multiple machines using bulk-synchronous processing (BSP) or other synchronous processing paradigms such as map-reduce. However, data parallel processing primitives such as repeated barrier and reduce operations introduce high synchronization overheads. Hence, many existing data-processing platforms use asynchrony and staleness to improve data-parallel job performance. Often, these systems simply change the synchronous communication to asynchronous between the worker nodes in the cluster. This improves the throughput of data processing but results in poor accuracy of the ﬁnal output since different workers may progress at different speeds and process inconsistent intermediate outputs.
+In this paper, we present ASAP, a model that provides asynchronous and approximate processing semantics for data-parallel computation. ASAP provides ﬁnegrained worker synchronization using NOTIFY-ACK semantics that allows independent workers to run asynchronously. ASAP also provides stochastic reduce that provides approximate but guaranteed convergence to the same result as an aggregated all-reduce. In our results, we show that ASAP can reduce synchronization costs and provides 2-10X speedups in convergence and up to 10X savings in network costs for distributed machine learning applications and provides strong convergence guarantees.
+1 Introduction
+Large-scale data-parallel computation across multiple machines often provide two fundamental constructs to scaleout local data processing. First, a merge or a reduce operation to allow the workers to merge updates from all other workers and second, a barrier or an implicit wait operation to ensure that all workers can synchronize and operate at similar speeds. For example, the
+
+bulk-synchronous model is a general paradigm to model data-intensive distributed processing [57]. Here, each node after processing a speciﬁc amount of data synchronizes with the other nodes using barrier and reduce operations. The BSP model is widely used to implement many big data applications, frameworks and libraries such as in the areas of graph processing and machine learning [1, 26, 31, 32, 40, 51]. Other synchronous paradigms such as the map-reduce [24, 62], the parameter server [23, 38] and dataﬂow based systems [5, 34, 43] use similar constructs to synchronize outputs across multiple workers.
+There is an emerging class of big data applications such as graph-processing and machine learning that are approximate because of the stochastic nature of the underlying algorithms that converge to a ﬁnal solution in an iterative fashion. These iterative-convergent algorithms operate on large amounts of data and unlike traditional TPC style workloads that are CPU bound [49], these iterative algorithms incur signiﬁcant network and synchronization costs by communicating large vectors between their workers. These applications can gain an increase in performance by reducing the synchronization costs in two ways. First, the workers can operate over stale intermediate outputs. The stochastic algorithms operate over input data in an iterative fashion to produce and communicate intermediate outputs with other workers. However, it is not imperative that the workers perform a reduce on all the intermediate outputs at every iteration. Second, the synchronization requirements between the workers may be relaxed, allowing partial, stale or overwritten outputs. This is possible because in some cases the iterative nature of data processing and the stochastic nature of the algorithms may provide an opportunity to correct any errors introduced from staleness or incorrect synchronization.
+There has been recent research that explores this opportunity by processing stale outputs, or by removing all synchronization [52, 59]. However, na¨ıvely converting the algorithms from synchronous to asynchronous can increase the throughput but may not improve the convergence speeds. Furthermore, these bounds may not generalize across applications or datasets. Finally, an increase
+
+in the data processing throughput may not translate to an improved speedup with the same ﬁnal output accuracy and in some cases may even converge the underlying algorithm to an incorrect value [42].
+Hence, to provide asynchronous and approximate semantics with reasonable correctness guarantees for iterative convergent algorithms, we present Asynchronous and Approximate abstractions for data-parallel computation. To facilitate approximate processing, we describe stochastic reduce, a sparse reduce primitive, that mitigates the communication and synchronization costs by performing the reduce operation with fewer workers. We construct a reduce operator by choosing workers based on sparse expander graphs on underlying communication nodes that mitigates CPU and network costs during reduce for iterative convergent algorithms. Furthermore, stochastic reduce allows developers to reason about convergence times and network communication costs, by evaluating the speciﬁc properties of the underlying node communication graphs.
+To reduce synchronization costs, we propose a ﬁnegrained communication using an OS style NOTIFY-ACK mechanism that provides performance improvement over barrier style synchronization. NOTIFY-ACK allows independent worker threads (such as those in stochastic reduce) to run asynchronously instead of blocking on a coarse-grained global barrier at every iteration. Additionally, NOTIFY-ACK provides stronger consistency than just using a barrier to implement synchronous dataparallel processing.
+ASAP is not a programming model (like mapreduce [24]) or is limited to a set of useful implementation mechanisms. It introduces semantics for approximate and asynchronous execution which are amiss in the current ﬂurry of distributed machine learning systems which often use asynchrony and staleness to improve the input processing throughput.
+The contributions of this paper are as follows:
+• We present ASAP, an asynchronous approximate computation model for large scale data parallel applications. We introduce stochastic reduce for approximate semantics and ﬁne-grained synchronization based on NOTIFY-ACK to allow independent threads run asynchronously.
+• We apply ASAP to distributed machine learning. We empirically and formally show that data parallel learning using ASAP semantics converges to the same result as synchronous all-reduce.
+In our results, we show that when ASAP semantics are applied to distributed machine learning problems, the re-
+
+sulting system can achieve strong consistency, provable convergence and provides 2-10X in convergence and up to 10X savings in network costs. The rest of the paper is organized as follows. In the next section, we provide a background on data-parallel distributed machine learning. We then describe the ASAP model which consists of the stochastic reduce and ﬁne-grained synchronization primitives that reduces synchronization costs. Finally, we evaluate ASAP and discuss related work.
+2 Background
+Large-scale problems such as training image classiﬁcation models, page-rank computation and matrix factorization operate on large amounts of data. As a result, many stochastic algorithms have been proposed that make these problem tractable for large data by iteratively approximating the solution over small batches of data. For example, to scale better, matrix factorization methods have moved from direct and exact factorization methods such as singular value decomposition to iterative and approximate factorization using gradient descent style algorithms [27]. Hence, many algorithms that are used to discover relationships amongst data have been re-written in the form distributed optimization problems that iterate over the input data and approximate the solution. In this paper, we describe how to provide asynchronous and approximate semantics to these distributed optimization based applications. We speciﬁcally focus on the design and performance beneﬁts for distributed machine learning applications using ASAP.
+2.1 Distributed Machine Learning
+Machine learning algorithms process data to build a training model that can generalize over new data. The training output model, or the parameter vector (represented by w) is computed to perform future predictions over new data. To train over large data, ML methods often use the Stochastic Gradient Descent (SGD) algorithm that can train over a single (or a batch) of examples over time. The SGD algorithm processes data examples to compute the gradient of a loss function. The parameter vector is then updated based on this gradient value after processing each training data example. After a number of iterations, the parameter vector or the model converges towards acceptable error values over test data. Hence, SGD can be used to train ML models iteratively over the training data as shown in Figure 1.
+To scale out the computation over multiple machines, the SGD algorithm can be distributed over a cluster by us-
+
+2
+
+Parameters w1, w2,.., wn
+
+Goal: Minimize Pn Cost(ei)
+e=1
+
+Learning Output
+
+Cost e1, e2, , en
+
+Function
+
+Function
+
+Input x1,x2,..xn
+
+Expected O/P y1,y2,..yn
+
+Figure 1: The machine learning training process. The computation can be distributed over a cluster of machines with data parallelism, by splitting the input (x1,x2,..,xn) or model parallelism, by splitting the model (w1, w2,..,wn). The goal of parallelization is not only to process the input quickly but also to maintain low error rates (e1, e2,..,en).
+ing data parallelism, by splitting the input (x1,x2,..,xn) or by model parallelism, by splitting the model (w1, w2,..,wn). In data-parallel learning using BSP, the parallel model replicas train over different machines. After a ﬁxed number of iterations, these machines synchronize the parameter models that have been trained over the partitioned data with one-another using a reduce operation. For example, each machine may perform an average of all incoming models with its own model, and proceed to train over more data. In the BSP model, there is a global barrier that ensures that models train and synchronize intermediate inputs at the same speeds.
+Hence, distributed data-parallel machine learning suffers from additional synchronization and communication costs over a single thread. The reduce operation requires communicating models to all other machines when training using the BSP or map-reduce model. However, since these algorithms are iterative-convergent, and can tolerate errors in the synchronization step, there has been recent work on communicating stale intermediate parameter updates and exchanging parameters with little or no synchronization [9, 17, 52].
+Past research has found that simply removing the barrier may speed up the throughput of the system [13, 59]. However, this may not always improve the convergence speed and may even converge the system to an incorrect ﬁnal value [42]. Since the workers do not synchronize, and communicate model parameters at different speeds, the workers process the data examples rapidly. However, since different workers train at different speeds, the global model may skew in the favor of the workers that are able to process and communicate their models. Similarly, setting bounds for synchrony may appear to work for some workloads. But determining these bounds can be empirically difﬁcult and for some datasets it may be no bet-
+
+ter than an single iteration (i.e. no better than having a barrier). Furthermore, if a global single model is maintained and updated without locks (as in [52]), a global convergence may only be possible if the parameter vector is sparse. Finally, maintaining a global single model in a distributed setting results in lots of wasted communication since a lot of the useful parameter updates are overwritten [13, 47].
+The distributed parameter-server architecture limits network trafﬁc by maintaining a central master [5, 23, 38]. Here, the server coordinates the parameter consistency amongst all other worker machines by resetting the workers’ model after every iteration and ensures global consensus on the ﬁnal model. Hence, a single server communicates with a large number of workers that may result in network congestion at the edges which can be mitigated using a distributed parameter server [38]. However, the parameter server suffers from similar synchronization issues as BSP style systems – a synchronous server may spend a signiﬁcant amount of time at the barrier while an asynchronous server may reduce with few workers’ models and produce inconsistent intermediate outputs and this can slow down convergence. Hence, the parameter server architecture can beneﬁt from a ﬁne-grained consistent synchronization mechanisms that have low overheads.
+To provide asynchronous and approximate processing semantics with consistency and convergence guarantees, we introduce ASAP that provides approximate processing by synchronizing each worker with a subset of workers at each iteration. Additionally, ASAP provides ﬁne-grained synchronization that improves convergence behavior and reduces synchronization overheads over a barrier. We describes both these techniques next.
+3 Stochastic reduce for approximate processing
+In this section, we describe how data-parallel applications can use stochastic reduce to mitigate network and processing times for iterative machine learning algorithms. We then introduce a metric to compare convergence speeds of stochastic reduce with all-reduce.
+With distributed machine learning, parallel machines or cores (workers) train on model replicas in parallel and exchange model parameters after processing a set of examples. Hence, after processing a batch of examples, the parallel model replicas perform a reduce over the incoming parameters, update their local models and continue to train. In the map-reduce model, all workers syn-
+
+3
+
+chronize with one another and this operation is referred to as the all-reduce step. In the parameter server model, this synchronization and reduce occurs with a single or distributed master [23, 39]. To mitigate the reduce overheads, efﬁcient all-reduce has been explored in the mapreduce context where nodes perform partial aggregation in a tree-style to reduce network costs [16, 10, 60]. However, these methods decrease the network and processing costs at the cost of increasing the latency of the reduce operation proportional to the height of the tree.
+The network of worker nodes, i.e. the node communication graph of the cluster determines how rapidly the intermediate model parameters are propagated to all other machines and also determines the associated network and processing costs. For example, all-reduce and the parameter server represent different types of communication graphs that describe how the workers communicate the intermediate results as shown in Figure 2. Intuitively, when the workers communicate with all machines at every reduce step, this network is densely connected and convergence is rapid since all the machines get the latest intermediate updates. However, if the network of nodes is sparsely connected, the convergence may be slow due to stale, indirect updates being exchanged between machines. However, with sparse connectivity, there are savings in network and CPU costs (fewer updates to process at each node), that can result in an overall speedup in job completion times. Furthermore, if there is a heterogeneity in communication bandwidths between the workers (or between the workers and the master, if a master is used), many workers may end up waiting. As an example, if one is training using GPUs over a cluster, GPUs within one machine can synchronize at far lower costs over the PCI bus than over the network. Hence, frequent reduce across interconnects with varying latency may introduce a large number of stragglers which can increase the cost of synchronization for all workers.
+Hence, instead of synchronizing and performing a reduce with every other node, parallel nodes training ML tasks can synchronize with fewer nodes by performing a sparse or stochastic reduce using a sparse node communication graph. Since machine learning algorithms that use SGD are stochastic, as long as all machines are connected and they receive parameter updates directly or indirectly from others, the underlying optimization algorithm will converge to the same result as an all-reduce. When the nodes have strong connectivity properties, i.e. the nodes are connected such that the parameter updates from one node disperse to all other nodes in fewest time steps at low network costs, the convergence is network efﬁcient. We propose using stochastic reduce based on sparse graphs
+
+W1
+
+W6
+
+W2
+
+M1
+
+W5
+
+W1
+
+W1
+
+W2
+
+W3
+
+W1
+
+W2
+
+W3
+
+W5
+
+W3
+
+W4
+
+W4
+
+W2
+
+W3
+
+W4
+
+W5
+
+W1
+
+W4
+
+W5
+
+W1
+
+(a) all-reduce
+
+(b) parameter server
+
+(c) expander graph
+
+(d) chain graph
+
+Figure 2: Figure (a) shows all-reduce, Spectral Gap for six nodes, SG-6:1.00, SG-25:1.00. Figure (b) shows parameter server, SG-6:0.75, SG-25:0.68. Figure (c) shows an expander graph with SG-6:0.38, SG-25:0.2 Figure (d) shows a chain graph with SG-6: 0.1, SG-25: 0.002
+with strong connectivity properties.
+
+3.1 Rapid convergence at ﬁxed communication costs
+The goal of stochastic reduce is to improve performance by reducing network and processing costs by using sparse reduce graphs. Recent work has shown that every dense graph can be reduced to an equivalent approximate sparse graph with fewer edges [7]. This is a signiﬁcant result since it implies that stochastic reduce can be applied to save network costs for almost any network topology. Expander graphs, which are sparse graphs with strong connectivity properties have been explored in the context of data centers and distributed communities to communicate data with low overheads [55, 56]. An expander graph has ﬁxed out-degrees as the number of vertices increase while maintaining approximately the same connectivity between the vertices. Hence, using expander graphs for stochastic reduce provides approximately the same convergence as all-reduce while keeping network costs low, as the number of nodes increase.
+To measure the convergence of algorithms that use stochastic reduce, i.e. to compare the sparsity of the adjacency graph of communication, we calculate the spectral gap of the adjacency matrix of the network of workers. The spectral gap is the difference between the two largest singular values of the adjacency matrix normalized by the in-degree of every node. The spectral gap of a communication graph determines how rapidly a distributed, iterative sparse reduce converges when performing distributed optimization over a network of nodes represented by this graph. For strong convergence properties, this value should be as high as possible. Hence, wellconnected graphs have a high spectral gap value and converge faster but will have high communication costs. Conversely, if the graph is disconnected, the spectral gap value is zero, and with data partitioned across machines, the ﬁnal model may not converge to a correct value. We discuss
+
+4
+
+the formal conditions of convergence based on spectral gap for any optimization problem using stochastic reduce in Appendix A.
+Past work using partial-reduce for optimization problems has explored speciﬁc ﬁxed communication graphs such as butterﬂy or logarithmic sequences [9, 37]. These communication sequences provide ﬁxed network costs but may not generalize to networks with complex topologies or networks with dissimilar bandwidth edges such as distributed GPU environments. Additionally, ASAP introduces the ability to reason convergence using the spectral gap of a network graph and developers can reason why some node graphs have stronger convergence properties than others. Finally, existing approaches use a global barrier after each communication step and require all machines to wait for all other nodes after each reduce, incurring extra synchronization overheads. We describe how ﬁne-grained communication of ASAP improves reduce this synchronization overhead in Section 4. We now describe how a developer can generate sparse graphs with good convergence properties given ﬁxed network costs or ﬁxed out-degrees for vertices in the communication graph.
+Figure 2 shows six nodes connected using four distributed machine learning training architectures, the allreduce, the parameter server (non-distributed), an expander graph with a ﬁxed out-degree of two, and a chain like architecture and their respective spectral-gap values for 6 and 25 nodes. As expected, architectures with more edges, have a high-spectral gap and provide good convergence. Figure 2 (a) shows the all-reduce, where all machines communicate with one-another and increasing the number of nodes, signiﬁcantly increases the network costs. Figure 2 (b) shows the parameter server has a reasonably high spectral gap but using a single master with a high fanout requires considerable network bandwidth and Paxos-style reliability for the master. Figure 2 (c) shows a root expander graph has a ﬁxed out-degree of two, and in a network of N total nodes, each node i sends the intermediate output to√its neighbor (i + 1) (to ensure connectivity) and to i + N th node. Such root expander graphs ensure that the updates are spread across the network as N scales since the root increases with N . Finally, ﬁgure 2(d), shows a chain like graph, where the nodes are connected in a chain-like fashion, the intermediate parameter updates from node i may spread to i + 1 in a single time step, but will require N time steps to reach to the last node in the cluster and has low spectral gap values. In the rest of the paper, we use the root sparse expander graph, as shown in Figure 2(c), with a ﬁxed out-degree of two, to evaluate stochastic reduce. A full discussion of various expander graph architectures and their corresponding
+
+convergence is interesting but outside the scope of this paper.
+We ﬁnd that by using sparse expander reduce graphs, with just two out-degrees often provides good convergence and speedup over all-reduce i.e. high enough spectral gap values with reasonably low communication costs. Using sparse directed reduce graphs with stochastic reduce results in faster model training times because: First, the amount of network time is reduced. Second, the synchronization time is reduced since each machine communicates with fewer parallel models. Finally, the CPU times at each model replica is reduced since it needs to process fewer incoming intermediate parameter updates.
+For stochastic reduce to be effective, the following properties are desirable. First, the generated node communication graph should have a high-spectral gap. This ensures that the model updates from each machine are diffused across the network rapidly. Second, the nodecommunication graphs should have low communication costs. For example, the out-degrees of each node in the graph should have small out-degrees. Finally, the graph should be easy to generate such as using a sequence to accommodate variable number of machines or a possible re-conﬁguration in case of a failure. These properties can be used to guide existing data-parallel optimizers [33] or schedulers [14], to reduce data shufﬂing costs by constructing sparse reduce graphs while accommodating real world constraints such as avoiding cross-rack or crossinterconnect reduce. We now discuss how to reduce the synchronization costs with ﬁne-grained communication.
+4 Fine-grained synchronization
+Barrier based synchronization is an important and widely used operation for synchronizing parallel machine learning programs across multiple machines. After executing a barrier operation, a parallel worker waits until all the processes in the system have reached a barrier. Parallel computing libraries like MPI, as well as data parallel frameworks such as BSP systems and some parameter servers expose this primitive to the developers [12, 31, 40, 38]. Furthermore, machine learning systems based on map-reduce use the stage barrier between the map and reduce tasks to synchronize intermediate outputs across machines [15, 28].
+Figure 3 shows a parallel training system on n processes. Each process trains on a subset of data, and computes new model parameter values and sends it to all other machines and the waits on the barrier primitive. When all processes arrive at the barrier i.e. all other machines issue a send with their intermediate model parameters,
+
+5
+
+for all machines to ﬁnish send
+
+3 Workers
+
+Iteration i+1
+
+perform a
+
+reduce() over the received
+
+W1
+
+W2
+
+W3
+
+W4
+
+W5
+
+updates
+
+(a) Barrier based synchronization
+
+1 Workers send() updates to all other machines
+2
+All workers wait on barrier() for all machines to ﬁnish send
+3 Workers
+perform a reduce() over
+the received updates
+
+Iteration i
+
+W1
+
+W2
+
+W3
+
+W4
+
+W5
+
+Barrier
+
+Iteration i+1
+
+W1
+
+W2
+
+W3
+
+W4
+
+W5
+
+(a) Barrier based synchronization
+
+Fni1izguapuatdlWlriaooeotrernkss3eu+rb:sssNeseTOtmeTohnIfdaFit(Yshn)etﬁtoigcus.resWesndhoaornwkd eNsOrTtsIhFYeWw1o, rWke2rsaannddWsp3arssyenscyhItnerrcoahtniorinzoie-
+
+with omnaechainnesother. Additionally, workers W3, W4 and W5
+
+sy2nchronize with Workers wait for
+
+oWn1e
+
+anothWer2.
+
+With
+
+aWb3 arrieWr4,
+
+all
+
+woWrk5ers
+
+waiNtOTfoIFrYefvroemrayll itosther worker at the barrier and then proceed
+
+to the nseenxdetrsiteration. This has high performance overhead
+
+an3dWmorkaeyrs pneorfotrmevaen guarantee consistency in absence of addi-
+
+tionarNeOldTsuIycFenY(=c)=hwr#hoeonfnizati4on at each machine. ACK after reduce
+
+receivers
+
+Workers send
+
+an ACK after
+
+th5e ing
+
+workers perform aperrfoermdinug ace operation over
+
+muWpodoraktdeerses floronpmlyastherenadmeters
+
+reduce()
+and continue
+
+processing
+
+thIteeraintiocnoi+m1 more input
+
+data.next iteration to machines that have
+
+W1
+
+W2
+
+W3
+
+W4
+
+W5
+
+sent an ACK
+
+However, using the barrier as a synchronization
+
+point in the code suff(be)rNsOTfIrFoYm-ACKsebvaseerdaslynpchrroobnizleatmions: First, the BSP protocol described above, suffers from mixed-
+
+version issues i.e. in the absence of additional synchro-
+
+nization or serialization at the receive side, a receiver may
+
+perform a reduce with partial or torn model updates (or
+
+skip them if a consistency check is enforced). This is
+
+because just using a barrier gives no information if
+
+the recipient has ﬁnished receiving and consuming the
+
+model update. Second, most barrier implementations
+
+synchronize with all other processes in the computation.
+
+In contrast, with stochastic reduce, ﬁner grained synchro-
+
+nization primitives are required that will block on only the
+
+required subset of workers to avoid unnecessary synchro-
+
+nization costs. A global barrier operation is slow and
+
+removing this operation can reduce synchronization costs,
+
+but makes the workers process the input data at different
+
+speeds that may slow down the overall time to achieve
+
+the ﬁnal accuracy. Finally, using a barrier can cause
+
+network resource spikes if all the processes send their pa-
+
+rameters at the same time.
+
+Adding extra barriers before/after push and reduce, does not produce a strongly consistent BSP that can incorporate model updates from all replicas since the actual send operation may be asynchronous and there is no guarantee the receivers receive these messages when the perform a reduce. Unless a blocking receive is added after every send, the consistency is not guaranteed. However,
+
+1 Workers send()
+updates + NOTIFY to all or subset of the machines
+2
+Workers wait for NOTIFY from all its
+senders
+
+send and NOTIFY
+
+W1
+
+W2
+
+3 Workers perform a reduce() when NOTIFY == # of receivers
+5 Workers only send
+updates from the next iteration to machines that have
+sent an ACK
+
+4 Workers send an ACK after performing a reduce()
+
+W1
+
+W2
+
+Iteration i
+
+W3
+
+W4
+
+W5
+
+ACK after reduce Iteration i+1
+
+W3
+
+W4
+
+W5
+
+(b) NOTIFY-ACK based synchronization
+
+Figure 4: This ﬁgure shows ﬁne-grained synchronization in ASAP. The solid lines show NOTIFY operation and the dotted lines show the corresponding ACK . Workers only wait for intermediate outputs from dependent workers to perform a reduce. After reduce, workers push more data out when they receive an ACK from receivers signaling that the sent parameter update has been consumed.
+this introduces a signiﬁcant synchronization overhead.
+Hence, to provide efﬁcient coordination among parallel model replicas, we require the following three properties from any synchronization protocol. First, the synchronization should be ﬁne-grained. Coarse-grained synchronization such as barrier impose high overheads as discussed above. Second, the synchronization mechanism should provide consistent intermediate outputs. Strong consistency methods avoid torn-reads and mixed version parameter vectors, and improve performance [11, 61]. Finally, the synchronization should be efﬁcient. Excessive receive-side synchronization for every reduce and send operation can signiﬁcantly increase blocking times.
+In data-parallel systems with barrier based synchronization, there is often no additional explicit synchronization between the sender and receiver when an update arrives. Furthermore, any additional synchronization may reduce the performance especially when using low latency communication hardware such as RDMA that allow one-sided writes without interrupting the receive-side CPU [35]. In the absence of synchronization, the rate at which the intermediate outputs arrive varies. As a result, a fast sender can overwrite the receive buffers or the receiver may perform a reduce with a fewer of senders instead of consuming every worker’s intermediate output hurting convergence.
+Naiad, a dataﬂow based data-parallel system, provides a notify mechanism to inform the receivers about the incoming model updates [43]. This ensures that when a
+
+6
+
+node performs a local reduce, it consumes the intermediate outputs from all machines. Hence, a per-receiver notiﬁcation allows for ﬁner-grained synchronization. However, simply using a notify is not enough since a fast sender can overwrite the receive queue of the receiver and a barrier or any other style of additional synchronization is required to ensure that the parallel workers process incoming model parameters at the same speeds.
+To eliminate the barrier overheads for stochastic reduce and to provide strong consistency, we propose using a NOTIFY-ACK based synchronization mechanism that gives stricter guarantees than using a coarse grained barrier. This can also improve convergence times in some cases since it facilitates using consistent data from dependent workers during the reduce step.
+In ASAP, with NOTIFY-ACK, the parallel workers compute and send their model parameters with notiﬁcations to other workers. They then proceed to wait to receive notiﬁcations from all its senders as deﬁned by their node communication graphs as shown in ﬁgure 4. The wait operation counts the NOTIFY events and invokes the reduce when a worker has received notiﬁcations from all its senders as described by the node communication graph. Once all notiﬁcations have been received, it can perform a consistent reduce.
+After performing a reduce, the worker sends an ACK, indicating that the intermediate output in previous iteration has been consumed. Only when a worker receives an ACK for a previous send, indicating that the receiver has consumed the previously sent data, the worker may proceed to send the data for the next iteration. Unlike a barrier based synchronization, where there is no guarantee that a receiver has consumed the intermediate outputs from all senders, waiting on ACKs from receivers ensures that a sender never ﬂoods the receive side queue and avoids any mixed version issues from overlapping intermediate outputs. Furthermore, ﬁne-grained synchronization allows efﬁcient implementation of stochastic reduce since each sender is only blocked by dependent workers and other workers may run asynchronously.
+NOTIFY-ACK provides clean synchronization semantics in few steps. Furthermore, it requires no additional receive-side synchronization making it ideal for directmemory access style protocols such as RDMA or GPU Direct [2]. However, NOTIFY-ACK requires ordering guarantees of the underlying implementation to guarantee that a NOTIFY arrives after the actual data. Furthermore, in a NOTIFY-ACK based implementation, the framework should ensure that the workers send their intermediate updates and then wait on their reduce inputs to avoid any deadlock from a cyclic node communication graphs.
+
+5 Implementation
+We develop our second generation distributed learning framework using the ASAP model to incorporate stochastic reduce and ﬁne-grained synchronization. We implement distributed data-parallel model averaging over stochastic gradient descent (SGD). We implement our reference framework with stochastic reduce and NOTIFY-ACK support in C++ and provide Lua bindings to run existing Torch and RAPID deep learning networks [18, 44].
+For distributed communication, we use MPI and create the model parameters in distributed shared memory. In our implementation, parallel model replicas create a model vector in the shared memory and train on a portion of the dataset using the SGD algorithm. To reduce synchronization overheads, each machine maintains a persender receive queue to receive the model updates from other machines [51]. The queues and the shared memory communication between the parallel model replicas are created based on a node communication graph provided as an input when launching a job. Periodically, after processing few data examples and updating the local model w, the parallel replicas communicate the model parameters. The model replicas then average the incoming parameters with their own local model vector(w).
+We use the inﬁniBand transport and each worker directly writes the intermediate model to its senders without interrupting the receive side CPU, using one-sided RDMA operations. After the reduce operation, each machine sends out the model updates to other machines’ queues as deﬁned by the communication graph. Our system can perform reduce over any user-provided node communication graph allowing us to evaluate stochastic reduce for different node communication graphs.
+Furthermore, we also implement the synchronous, asynchronous and NOTIFY-ACK based synchronization. We implement synchronous (BSP) training by using the MPI provided barrier primitives. We use low-level distributed wait and notify primitives to implement NOTIFY-ACK. We maintain ACK counts at each node and send all outputs before waiting for ACKs across iterations to avoid deadlocks.
+We use separate inﬁniBand queues for transmitting short messages (ACKs and other control messages) and large model updates (usually a ﬁxed size for a speciﬁc dataset). For Ethernet based implementation, separate TCP ﬂows can be used to reduce the latency of control messages [46]. We provide fault tolerance by checkpointing the trained model periodically to the disk. Additionally, for synchronous methods, we implement a dataset speciﬁc dynamic timeout which is a function of
+
+7
+
+throughput of slightly over 40 Gbps after accounting for the bit-encoding overhead for reliable transmission. All machines load the input data from a shared NFS partition. We run multiple processes, across these machines and run multiple processes on each machine, especially for models with less than 1M parameters, where a single model replica is unable to saturate the network and CPU. All reported times do not account for the initial one-time cost for the loading the data-sets in memory. All times are reported in seconds.
+We evaluate the two machine learning methods:
+
+Figure 5: This ﬁgure compares the convergence of a root expander graph with an all-reduce graph over a single machine SGD. Each machine in root expander graph transmits 56 MB data while all-reduce transmits 84 MB of data to reach the desired accuracy value. Speedups are measured over a single-machine convergence.
+the time taken for the reduce operation.
+6 Evaluation
+In this section, we evaluate the ASAP model using the following criterion.
+• What is the beneﬁt of stochastic reduce? Do networks with a higher spectral gap exhibit better convergence?
+
+1. SVM: We test ASAP on distributed SVM based on Bottou’s SVM-SGD [8]. Each machine computes the model parameters and communicates them to other machines as described in the machine communication graph. We train SVM over the RCV1 dataset (document classiﬁcation), the webspam dataset (webspam detection) and the splice-site dataset (Genome classiﬁcation) [3].
+2. Convolutional Neural Networks (CNNs): We train CNNs for image classiﬁcation over the CIFAR-10 dataset [4]. The dataset consists of 50K train and 10K test images and the goal is to classify an input image to one amongst 10 classes. We use the VGG network to train 32x32 CIFAR-10 images with 11 layers that has 7.5M parameters [54]. We run data parallel replicas on multiple machines. We use OMP PARALLEL THREADS to parallelize the convolutional operations within a single machine.
+
+• What is the beneﬁt of using ﬁne-grained synchro-
+
+nization over a barrier? Is it consistent?
+
+6.1 Approximate processing beneﬁts
+
+We evaluate the ASAP model for applications that are commonly used today including text classiﬁcation, spam classiﬁcation, image classiﬁcation and Genome detection. Our baseline for evaluation is our BSP/synchronous and asynchronous based all-reduce implementations which is provided by many other distributed big data or machine learning systems [5, 1, 22, 26, 31, 32, 40, 51]. We use an efﬁcient inﬁniBand implementation stack that improves performance for all methods. However, stochastic reduce and NOTIFY-ACK can be implemented and evaluated over any existing distributed learning platform such as GraphLab or TensorFlow.
+We run all our experiments on eight Intel Xeon 8core, 2.2 GHz Ivy-Bridge processors and 64 GB DDR3 DRAM. All connected via a Mellanox Connect-V3 56 Gbps inﬁniBand cards to an inﬁniBand backplane. Our 56 Gbps inﬁniBand network architecture provides a peak
+
+Speedup with stochastic reduce We measure the speedups of all applications under test as the time to reach a speciﬁc accuracy. We ﬁrst evaluate a small dataset (RCV1, 700MB, document classiﬁcation) for the SVM application. The goal here is to demonstrate that for problems that ﬁt in one machine, our data-parallel system outperforms a single thread for each workload [41]. Figure 5 shows the convergence speedup for 4 machines for the RCV1 dataset. We compare the performance for all-reduce against a root graph with a ﬁxed out degree of two, where each node sends the model updates to two nodes – its neighbor and rootN th node. We ﬁnd that for the RCV1 dataset, the root expander graph converges marginally faster than the all-reduce primitive, owing to lower network costs of sending the intermediate model and lower CPU costs of processing fewer incoming models at each of the machines.
+
+8
+
+Figure 6: This ﬁgure shows the convergence of a root expander graph with all-reduce graph for the splice-site dataset. Each machine in root graph transmits 219GB data/process while all-reduce transmits 2.08TB/worker of data to reach the desired accuracy. Speedups are measured over all-reduce.
+Figure 6 shows the convergence for the SVM application using the splice-site dataset on 8 machines with 8 processes. The splice site training dataset is about 250GB, and does not ﬁt in-memory in any one of our machines. This is one of the largest public dataset that cannot be subsampled and requires training over the entire dataset to converge correctly [6]. Figure 6 compares the two communication graphs – an all-reduce graph and a root expander graph with an out-degree of 2. We see that the expander graph can converge faster, and requires about 10X lower network bandwidth. Hence, stochastic reduce can improve convergence time and reduce network bandwidth requirement as compared to a na¨ıve all-reduce.
+Figure 7 shows the convergence for the SVM application on 25 processes using the webspam dataset consisting of 250K examples. The data is split across all processes and each machine only trains over 31.25K training set examples. We compare three node communication graphs – a root expander graph (with a spectral gap of 0.2 for 25 nodes) and a (one) chain-like architecture where each machine maintains a model and communicates its updates in the form a chain to one other machine, with the allreduce implementation. The chain node graph architecture has lower network costs, but very low spectral values (around 0.008). Hence, it converges slower than the root expander graph. Both the sparse graphs provide a speedup over all-reduce since the webspam dataset has a large dense parameter vector of about 11M float values. However, the chain graph requires more epochs to train over the dataset and sends 50433 MB/node to converge while the root node requires 44351 MB/node even though
+
+Figure 7: This ﬁgure shows the convergence of a chain (one) graph and a root expander graph as compared to an all-reduce implementation for the webspam dataset over 25 workers.
+the chain graph transmits less data per epoch. Hence, one should avoid sparse reduce graphs with very low spectral gap values and use expander graphs provide good convergence with reasonable network costs.
+To summarize, we ﬁnd that stochastic reduce can provide signiﬁcant speedup in convergence (by 2-10X) and reduces the network and CPU costs. However, if the node communication graph is sparse and has low spectral gap values (usually less than 0.01), the convergence can be slow. Hence, stochastic reduce provides a quantiﬁable measure using the spectral gap values to sparsify the node communication graphs. For models where the network capacity and CPU costs can match the model costs, using a network that can support the largest spectral gap is recommended.
+6.2 Fine-grained synchronization beneﬁts
+We evaluate the beneﬁts of ﬁne-grained synchronization in this section. We compare the performance of NOTIFY-ACK, synchronous and asynchronous implementation. We implement the BSP algorithm using a barrier in the training loop, and all parallel models perform each iteration concurrently. However, simply using a barrier may not ensure consistency at the receive queue. For example, the parallel models may invoke a barrier after sending the models and then perform a reduce. This does not guarantee that each machine receives all the intermediate outputs during reduce. Hence, we perform a consistency check on the received intermediate outputs and adjust the number of intermediate models to compute the model average correctly. Each parameter update carries a unique version number in the header
+
+9
+
+% of reduce operations
+
+NACK
+100
+
+90
+
+80
+
+70
+
+60
+
+50
+
+SYNC
+
+40
+
+ASYNC SYNC
+
+30
+
+ASYNC
+
+20
+
+ASYNC
+
+AS1SY0YNNCC ASSYYNNCC SYNC SYNC
+
+SYNC
+
+ASYNC ASYNC SYNC ASYNC
+
+0
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+Number of reducers
+
+Figure 8: This bar graph shows the percentage of consistent reduce operations with NOTIFY-ACK vs BSP vs ASYNC for 8 machines for the RCV1 dataset. NOTIFY-ACK provides the strongest consistency allowing 100% of reduce operations to be performed using other 7 nodes.
+and footer we verify the version values in the header and footer are identical before and after reading the data from the input buffers.
+For asynchronous processing, we perform no synchronization between the workers once they ﬁnish loading data and start training. We check the incoming intermediate model updates for consistency as described above. For the NOTIFY-ACK implementation, we send intermediate models with notiﬁcations and wait for the ACK before performing a reduce. Some network interconnects (or libraries over these interconnects) may not guarantee that the notiﬁcations arrive with the data, and we additionally check the incoming model updates and adjust the number of reducers to compute the model average correctly. We ﬁrst perform a micro-benchmark to measure how many consistent reduce operations do synchronous (SYNC), asynchronous (ASYNC) and NOTIFY-ACK style of synchronization provide.
+Figure 8 shows, for a graph of 8 nodes with each machine having an in-degree 7 , the distribution of correct buffers reduced. NOTIFY-ACK, reduces with all 7 inputs and is valid 100% of the time. BSP has substantial torn reads, and 77% of the time performs a reduce with 5 or more workers. ASYNC can only perform 39% of the reduce operations correctly with 5 or more workers. Hence, we ﬁnd that NOTIFY-ACK provides the most consistent data during reduce and fewest torn buffers followed by BSP using a barrier, followed by asynchronous. We now evaluate the beneﬁts of NOTIFY-ACK with all-reduce communication.
+Figure 9 shows the convergence for the CIFAR-10 dataset for eight machines in an all-reduce communication. We calculate the time to reach 99% training accuracy on the VGG network which corresponds to an ap-
+
+proximately 84% test accuracy. We train our network with a mini-batch size of 1, with no data augmentation and a network wide learning rate schedule that decays every epoch. We ﬁnd that with CNNs, NOTIFY-ACK provides superior convergence over BSP and ASYNC. Even with a dense communication graph of all-reduce, we ﬁnd that NOTIFY-ACK reduces barrier times and provides stronger consistency than BSP providing competitive throughput and fast convergence. Furthermore, we ﬁnd that ASYNC initializes slowly and converges slower than synchronous and NOTIFY-ACK methods.
+We also measure the throughput (examples/second processed) for the three different synchronization methods – synchronous (BSP), asynchronous and the NOTIFY-ACK method. With NOTIFY-ACK, we avoid coarse-grained synchronization and achieve a throughput of 229.3 frames per second (or images per second) for eight machines. This is the average processing time and includes the time for forward and backward propagation, adjusting the weights and communicating and averaging the intermediate updates. With BSP, we achieve 217.8 fps. Finally, we ﬁnd that even though ASYNC offers the highest throughput of on an average 246 fps, Figure 9 shows that the actual convergence is poor. Hence, to understand the beneﬁts of approaches like relaxed consistency, one should consider speedup towards a (good) ﬁnal accuracy apart from throughput. However, there are some cases where ASYNC may provide good performance when the communication between the workers is not crucial for convergence. This may happen when the dataset is highly redundant. Second, if the model is sufﬁciently sparse which makes the reduce operation commutative and reduces conﬂicting updates.
+Figure 10 shows the convergence for the SVM application using the webspam dataset on 25 processes. We use the root-expander graph as described earlier, where each node receives the model updates with two other nodes. We ﬁnd that using ﬁne-grained NOTIFY-ACK improves the convergence performance and is about 3X faster than BSP for the webspam dataset. Furthermore, the asynchronous algorithm does not converge to the correct value even though it operates at a much higher throughput. NOTIFY-ACK provides good performance for three reasons. First, NOTIFY-ACK provides stronger consistency than BSP implemented using a barrier. In the absence of additional heavy handed synchronization with each sender, the model replicas may reduce with fewer incoming model updates. NOTIFY-ACK provides stronger guarantees since each worker waits for the NOTIFYs before performing the reduce and sends out additional data with after receiving the ACK messages. Second, for
+
+10
+
+Figure 9: This ﬁgure shows the convergence of NOTIFY-ACK, BSP, ASYNC with eight machines using all-reduce for training CNNs over the CIFAR-10 dataset with a VGG network. Speedups are measured over a single machine implementation.
+
+Figure 10: This ﬁgure shows the convergence of NOTIFY-ACK vs BSP and ASYNC for the root expander graph over the webspam dataset. The asynchronous implementation does not converge (DNC) to the ﬁnal value.
+
+approximate processing i.e. when the communication graph is sparse, a barrier blocks all parallel workers while when using ﬁne-grained communication with NOTIFY-ACK independent workers run asynchronously with respect to one another.
+To summarize, we ﬁnd that NOTIFY-ACK eliminates torn buffers and provides stronger consistency over BSP and asynchronous communication for dense as well as sparse node graphs. We describe our results for the BSP/all-reduce model. However, these results can also be extended to bi-directional communication architectures such as the parameter server or the butterﬂy architecture.
+7 Related Work
+We discuss related work about batch processing systems, data-parallel approximate and asynchronous processing and distributed machine learning frameworks.
+The original map-reduce uses a stage barrier i.e. all mapper tasks synchronize intermediate outputs over a distributed ﬁle-system [24]. This provides synchronization and fault tolerance for the intermediate job states but can affect the job performance due to frequent disk I/O. Spark [62] implements the map-reduce model in-memory using copy-on-write data-structures (RDDs). The faulttolerance is provided by checkpoint and replay of these RDDs which restrict applications from running asynchronously. ASIP [30] adds asynchrony support in Spark by decoupling fault tolerance and coarse-grained synchronization and incorporates fully asynchronous execution in Spark. However, ASIP ﬁnds that asynchronous execu-
+
+tion may lead to incorrect convergence, and presents the case for running asynchronous machine learning jobs using second order methods that provides stronger guarantees but can be extremely CPU intensive [50]. Finally, there are many existing general purpose dataﬂow based systems that use barriers or block on all inputs to arrive [19, 34, 43, 48]. ASAP uses ﬁne-grained synchronization with partial reduce to mitigate communication and synchronization overheads. Fault tolerance can be incorporated in the ASAP model by using application checkpoints as described in our example implementation.
+Past work on partial aggregation has proposed efﬁcient tree-style all-reduce primitive to mitigate communication costs. This is extensively used in batch systems to reduce network costs by combining results at various levels such as machine, rack etc. [10, 60]. However, the reduce operation suffers from additional latency proportional to the height of the tree. Furthermore, when partial aggregation is used with iterative-convergent algorithms, the workers wait for a signiﬁcant aggregated latency time which can be undesirable. Other work on partial-aggregation produces variable accuracy intermediate outputs over different computational budgets [36, 53]. ASAP exploits the iterative nature of machine learning algorithms for sparse aggregation of intermediate outputs that are propagated indirectly to all other workers over successive iterations reducing synchronization costs. ASAP provides the same ﬁnal accuracy as an aggregated all-reduce over successive iterations. The workers communicate over a network topology designed to disperse the intermediate outputs over fewer iterations. Other methods to reduce net-
+
+11
+
+work costs include using lossy compression [5] or KKT ﬁlters [38]. The latter method determines the utility of intermediate updates are before sending them over the network. These methods can be applied with stochastic reduce even though they may incur additional CPU costs unlike stochastic reduce.
+Past work has explored removing barriers in Hadoop to start reduce operations as soon as some of the mappers ﬁnish execution [29, 58]. HogWild [52] provides a single shared parameter vector and allows parallel threads to update model parameters without locks thrashing one another’s updates. However, HogWild may not converge to a correct ﬁnal value if the parameter vector is dense and the updates from different machines overwrite one-another frequently. Project Adam [13], DogWild [47] and other systems that use HogWild in a distributed setting results in excessive wasted communication especially when used to communicate dense parameter updates. A large number of previous systems propose removing the barriers which may provide faster throughput but may lead to slower or incorrect convergence towards the ﬁnal optimization goal. To overcome this problem, bounded-staleness [20] provides asynchrony within bounds for the parameter server i.e. the forward running threads wait for the stragglers to catch up. However, determining these bounds empirically is difﬁcult, and in some cases they may not more relaxed than synchronous. ASAP instead proposes using ﬁne-grained synchrony that reduces synchronization overhead and provides stronger guarantees than what can be provided through barriers.
+There has been a ﬂurry of distributed machine learning platforms developed recently. Parameter Server [23, 38] provide a master-slave style communication framework. Here, workers compute the parameter updates and send it to a central server (or a group of servers). The parameter server computes and updates the global model and sends it to the workers and they continue to train new data over this updated model. Hence, in the parameter server the workers need to wait after every batch to receive an updated model. Here, the overall communication is low even though the master has a high-fanout of nodes it communicates with. Furthermore, since the master maintains a global model and resets the stragglers with its own updated model, the parameter server architecture always converges to the correct value. On the contrary, all-reduce based systems, usually implemented over map-reduce or BSP based systems, use a network of workers that synchronize using a barrier. All-reduce may operate fully asynchronously since unlike parameter server there is no consensus operation to exchange the gradients. However, they suffer from high communication costs as the number
+
+of workers increase. ASAP reduces communication overheads in the all-reduce model and by proposing partialreduce based on information dispersal properties of underlying nodes.
+TensorFlow runs a dataﬂow graph across a cluster. Unlike some other parameter servers that use barrier for synchronous training, TensorFlow uses a queue abstraction and uses the asynchronous parameter server to train large models [5]. Recently, instead of using asynchronous synchronization methods, Tensorﬂow has introduced synchronization with backup workers that skips sychnronizing with the tail of the workers [11]. Using ASAP’s NOTIFY-ACK style synchronization can provide stronger consistency without any additional workers. Additionally, for large models, the large fanout of the master can be a bottleneck and the model parameters are aggregated at bandwidth hierarchies [11]. Using ASAP’s stochastic reduce to improve the convergence behavior of such network architectures can reduce the wait times. The parameter server architecture has also been proposed over GPUs [21, 63] and the communication and synchronization costs can be reduced in these systems by using the ASAP model.
+8 Conclusion
+Existing big-data processing frameworks use approximation and asynchrony to accelerate job processing throughput (i.e. examples/second processed). However, these optimizations may not beneﬁt the overall accuracy of the job output and may even result in a slowdown as compared to the bulk- synchronous model.
+In this paper, we introduce an asynchronous and approximate processing model that reduces synchronization costs and provides strong quantiﬁable guarantees allowing application developers to reason about the guarantees they provide. In our results, we demonstrate that a framework written using the ASAP model provides 2-10X speedups in convergence and up to 10X savings in network costs. Other optimization problems such as graphprocessing face similar trade-offs, and can beneﬁt from using the ASAP model.
+Acknowledgments
+We would like to thank Cun Mu for his help with the analysis of stochastic reduce convergence, and Igor Durdanovic for helping us port RAPID to MALT-2. Finally, we would like to thank Hans-Peter Graf for his support and encouragement.
+
+12
+
+gt = (gt1, gt2, . . . , gtk), and wt = (wt1, wt2, . . . , wtk) . Then the updates can be tersely expressed as :
+
+A Stochastic reduce convergence analysis
+In this section, we provide the supplementary material to analyse the convergence for any optimization algorithm that is implemented using stochastic reduce. Mathematically, the optimization problem is deﬁned on a connected undirected network and solved by n nodes collectively,
+
+w1 = −η0P g0 w2 = −η0P 2g0 − η1P g1
+
+...
+
+wt = −η0P tg0 − η1P t−1g1 − · · · − ηt−1P gt−1
+
+t−1
+wt = − ηkP t−kgk
+
+(A.3)
+
+k=0
+
+min
+x∈X ⊆Rd
+
+n
+f¯(x) := fi(x).
+i=1
+
+(A.1)
+
+The feasible set X is a closed and convex set in Rd and is known by all nodes, whereas fi : X ∈ R is a convex function privately known by the node i. We also assume that fi is L-Lipschitz continuous over X with respect to the Euclidean norm · . The network G = (N , E), with the node set N = [n] := {1, 2, · · · , n} and the edge set
+E ⊆ N × N , speciﬁes the topological structure on how
+the information is spread amongst the nodes through local node interactions over time. Each node i can only send
+and retrieve information as deﬁned by the node communication graph N (i) := {j | (j, i) ∈ E} and itself.
+In this algorithm, each node i keeps a local estimate xi and a model variable wi to maintain an accumulated subgradient. At iteration t, to update wi, each node needs to collect the model update values of its neighbors which is the gradient value denoted by ∇fi(wti), and forms a convex combination with an equal weight of the received information. The learning rate is denoted by ηt. Hence, the updates received by each machine can be expressed
+as:
+
+wti+1/2 ← wti − ηt∇fi(wti)
+
+wti+1
+
+←
+
+1 |Niin|
+
+wtj+1/2
+j∈Niin
+
+(A.2)
+
+Network requirement. In order to make the above al-
+gorithm work, we need a network over which each node
+has the same inﬂuence. To understand and quantify this requirement, we denote the adjacency matrix as A, i.e. Aij = 1 if (j, i) ∈ A and 0 otherwise, and denote P as the matrix after scaling each i-th row of A by the in-degree of node i, i.e. P = diag (din)−1 A, where din ∈ Rk and din(i) equals the in-degree of node i. For ease of illustration, we assume that d = 1 and w0i = 0. Denote
+
+It can be easily veriﬁed that P ∞ := limt→∞ P t = 1π ,
+
+where π is a probability distribution (known as station-
+
+ary distribution). Thus, πi here represents the inﬂuence
+
+that node i played in the network. Therefore, to take a
+
+fair treatment of each node, πi
+
+=
+
+1 k
+
+is desired, which is
+
+equivalent to saying the row sums and column sums of P
+
+are all equal to one, i.e. P is a doubly stochastic matrix.
+
+In the context of our network setting, we need a network
+
+whose nodes all have the same in-degree. Indeed, when fi
+
+is convex, the convergence results have been established
+
+under this assumption [45].
+
+Spectral Gap: Besides being regular, the network N (i)
+
+should also be constructed in a way such that the informa-
+
+tion can be effectively spread out over the entire network,
+
+which is closely related with the concept of spectral gap.
+
+We denote σ1(P ) ≥ σ2(P ) ≥ · · · ≥ σk(P ) ≥ 0, where
+
+σi(P ) is the ith largest singular value of P . Clearly,
+
+σ1(P ) = 1. From the expression (A.3), we can see that
+
+the speed of convergence depends on how fast P t con-
+
+verges
+
+to
+
+1 k
+
+11
+
+, and based on the Perron-Frobenius the-
+
+ory, we have,
+
+P tx
+
+−
+
+1 n1
+
+≤ σ2(P )t,
+2
+
+for any x in the k-dimensional probability simplex. Therefore, the network with large spectral gap, 1−σ2(P ), is greatly desired. For additional discussions on the im-
+portance of this spectral gap, please refer to [25]. We calculate the spectral gap as 1 − σ2(P ), where
+σ2(P ) is the second largest singular value of P . The P matrix is deﬁned as A/d, where A is the adjacency matrix (including self-loop) and d is the in-degree (in-
+cluding self-loop). The spectral gap here is deﬁned as σ1(P ) − σ2(P ). But σ1(P ) the largest singular value should be 1. So the gap equals 1 − σ2(P ), where σ2(P ) is the second largest singular value of P .
+Hence, stochastic reduce network communication
+graphs with large spectral gap values will converge
+
+13
+
+rapidly. Hence, one should construct sparse network communication topologies for reduce such that the communication costs are low while ensuring large possible spectral gap values of the network.
+References
+
+[16] L. Chu, H. Tang, T. Yang, and K. Shen. Optimizing data aggregation for cluster-based internet services. In ACM SIGPLAN Symposium on Principles and practice of parallel programming (PPoPP) , 2003. ACM.
+[17] J. Cipar, Q. Ho, J. K. Kim, S. Lee, G. R. Ganger, G. Gibson, K. Keeton, and E. Xing. Solving the straggler problem with bounded staleness. In USENIX HotOS, 2013.
+
+[1] Apache Hama: Framework for Big Data Analytics. [18] R. Collobert, K. Kavukcuoglu, and C. Farabet. Torch7:
+
+http://hama.apache.org/.
+
+A matlab-like environment for machine learning. In
+
+BigLearn, NIPS Workshop, 2011.
+
+[2] NVIDIA GPUDirect. https://developer.nvidia.
+
+com/gpudirect.
+
+[19] T. Condie, N. Conway, P. Alvaro, J. M. Hellerstein,
+
+K. Elmeleegy, and R. Sears. Mapreduce online. In NSDI,
+
+[3] PASCAL Large Scale Learning Challenge.
+
+volume 10, page 20, 2010.
+
+http://largescale.ml.tu-berlin.de, 2009. [20] H. Cui, J. Cipar, Q. Ho, J. K. Kim, S. Lee, A. Kumar,
+
+[4] The CIFAR-10 dataset.
+
+https://www.cs.
+
+J. Wei, W. Dai, G. R. Ganger, P. B. Gibbons, et al. Ex-
+
+toronto.edu/ kriz/cifar.html, 2009.
+
+ploiting bounded staleness to speed up big data analytics.
+
+[5] M. Abadi and et. al. Tensorﬂow: Large-scale machine
+
+In USENIX ATC, 2014.
+
+learning on heterogeneous systems, 2015. Software avail- [21] H. Cui, H. Zhang, G. Ganger, P. Gibbons, and E. Xing.
+
+able from tensorﬂow. org.
+
+Geeps: Scalable deep learning on distributed gpus with
+
+[6] A. Agarwal, O. Chapelle, M. Dud´ık, and J. Langford. A reliable effective terascale linear learning system. JMLR, 2014.
+
+a gpu-specialized parameter server. In Proceedings of the Eleventh European Conference on Computer Systems. ACM, 2016.
+
+[7] J. Batson, D. A. Spielman, N. Srivastava, and S.-H. Teng. Spectral sparsiﬁcation of graphs: theory and algorithms. Communications of the ACM, 56(8):87–94, 2013.
+[8] L. Bottou. Large-scale machine learning with stochastic gradient descent. In Springer COMPSTAT, pages 177–187, Paris, France, 2010.
+[9] J. Canny and H. Zhao. Butterﬂy mixing: Accelerating incremental-update algorithms on clusters. In SDM, pages 785–793, 2013.
+[10] R. Chaiken, B. Jenkins, P.-A˚ . Larson, B. Ramsey, D. Shakib, S. Weaver, and J. Zhou. Scope: easy and efﬁcient parallel processing of massive data sets. Proceedings of the VLDB Endowment, 1(2):1265–1276, 2008.
+[11] J. Chen, R. Monga, S. Bengio, and R. Jozefowicz. Revisiting distributed synchronous sgd. ICLR Workshop, 2016.
+[12] T. Chen, M. Li, Y. Li, M. Lin, N. Wang, M. Wang, T. Xiao, B. Xu, C. Zhang, and Z. Zhang. Mxnet: A ﬂexible and efﬁcient machine learning library for heterogeneous distributed systems. arXiv preprint arXiv:1512.01274, 2015.
+[13] T. Chilimbi, Y. Suzue, J. Apacible, and K. Kalyanaraman. Project Adam: Building an Efﬁcient and Scalable Deep Learning Training System. In USENIX OSDI, 2014.
+[14] M. Chowdhury, Y. Zhong, and I. Stoica. Efﬁcient coﬂow scheduling with varys. In ACM SIGCOMM Computer Communication Review. ACM, 2014.
+[15] C. Chu, S. K. Kim, Y.-A. Lin, Y. Yu, G. Bradski, A. Y. Ng, and K. Olukotun. Map-reduce for machine learning on multicore. NIPS, 19:281, 2007.
+
+[22] W. Dai, J. Wei, X. Zheng, J. K. Kim, S. Lee, J. Yin, Q. Ho, and E. P. Xing. Petuum: A framework for iterative-convergent distributed ml. arXiv preprint arXiv:1312.7651, 2013.
+[23] J. Dean, G. Corrado, R. Monga, K. Chen, M. Devin, Q. V. Le, M. Z. Mao, M. Ranzato, A. W. Senior, P. A. Tucker, et al. Large scale distributed deep networks. In NIPS, 2012.
+[24] J. Dean and S. Ghemawat. Mapreduce: simpliﬁed data processing on large clusters. Communications of the ACM, 51(1):107–113, 2008.
+[25] J. C. Duchi, A. Agarwal, and M. J. Wainwright. Dual averaging for distributed optimization: convergence analysis and network scaling. Automatic control, IEEE Transactions on, 57(3):592–606, 2012.
+[26] E. Gabriel, G. E. Fagg, G. Bosilca, T. Angskun, J. J. Dongarra, J. M. Squyres, V. Sahay, P. Kambadur, B. Barrett, A. Lumsdaine, et al. Open MPI: Goals, concept, and design of a next generation MPI implementation. In Recent Advances in Parallel Virtual Machine and Message Passing Interface, pages 97–104. Springer, 2004.
+[27] R. Gemulla, E. Nijkamp, P. J. Haas, and Y. Sismanis. Large-scale matrix factorization with distributed stochastic gradient descent. In ACM KDD, pages 69–77, 2011.
+[28] A. Ghoting, R. Krishnamurthy, E. Pednault, B. Reinwald, V. Sindhwani, S. Tatikonda, Y. Tian, and S. Vaithyanathan. Systemml: Declarative machine learning on mapreduce. In Data Engineering (ICDE), 2011 IEEE 27th International Conference on, pages 231–242. IEEE, 2011.
+
+14
+
+[29] ´I. Goiri, R. Bianchini, S. Nagarakatte, and T. D. Nguyen. Approxhadoop: Bringing approximations to mapreduce frameworks. In Proceedings of the Twentieth International Conference on Architectural Support for Programming Languages and Operating Systems, pages 383–397. ACM, 2015.
+[30] J. E. Gonzalez, P. Bailis, M. I. Jordan, M. J. Franklin, J. M. Hellerstein, A. Ghodsi, and I. Stoica. Asynchronous complex analytics in a distributed dataﬂow architecture. arXiv preprint arXiv:1510.07092, 2015.
+[31] J. E. Gonzalez, Y. Low, H. Gu, D. Bickson, and C. Guestrin. Powergraph: Distributed graph-parallel computation on natural graphs. In USENIX OSDI, 2012.
+[32] D. Gregor and A. Lumsdaine. The parallel BGL: A generic library for distributed graph computations. Parallel Object-Oriented Scientiﬁc Computing (POOSC), 2:1– 18, 2005.
+[33] Z. Guo, X. Fan, R. Chen, J. Zhang, H. Zhou, S. McDirmid, C. Liu, W. Lin, J. Zhou, and L. Zhou. Spotting code optimizations in data-parallel pipelines through periscope. In USENIX OSDI, 2012.
+[34] M. Isard, M. Budiu, Y. Yu, A. Birrell, and D. Fetterly. Dryad: distributed data-parallel programs from sequential building blocks. In ACM EuroSys, 2007.
+[35] A. Kalia, M. Kaminsky, and D. G. Andersen. Using RDMA efﬁciently for key-value services. In SIGCOMM, pages 295–306. ACM, 2014.
+[36] G. Kumar, G. Ananthanarayanan, S. Ratnasamy, and I. Stoica. Holdem or foldem? aggregation queries under performance variations. 2016.
+[37] H. Li, A. Kadav, E. Kruus, and C. Ungureanu. Malt: distributed data-parallelism for existing ml applications. In Eurosys. ACM, 2015.
+[38] M. Li, D. Andersen, A. Smola, J. Park, A. Ahmed, V. Josifovski, J. Long, E. Shekita, and B.-Y. Su. Scaling distributed machine learning with the parameter server. In USENIX OSDI, 2014.
+[39] M. Li, D. G. Andersen, and A. Smola. Distributed delayed proximal gradient methods. In NIPS Workshop on Optimization for Machine Learning, 2013.
+[40] G. Malewicz, M. H. Austern, A. J. Bik, J. C. Dehnert, I. Horn, N. Leiser, and G. Czajkowski. Pregel: a system for large-scale graph processing. In Proceedings of the 2010 ACM SIGMOD International Conference on Management of data, pages 135–146. ACM, 2010.
+[41] F. McSherry, M. Isard, and D. G. Murray. Scalability! but at what cost? In 15th Workshop on Hot Topics in Operating Systems (HotOS XV), 2015.
+[42] McSherry, Frank. Progress in graph processing: Synchronous vs asynchronous graph processing. https://github.com/frankmcsherry/blog /blob/master/posts/2015-12-24.md.
+
+[43] D. G. Murray, F. McSherry, R. Isaacs, M. Isard, P. Barham, and M. Abadi. Naiad: A timely dataﬂow system. In ACM SOSP, 2013.
+
+[44] NEC Laboratories America.
+
+MiLDE: Ma-
+
+chine Learning Development Environment.
+
+http://www.nec-labs.com/research-departments
+
+/machine-learning/machine-learning-software/
+
+Milde.
+
+[45] A. Nedic and A. Ozdaglar. Distributed subgradient methods for multi-agent optimization. IEEE Transactions on Automatic Control, pages 48–61, 2009.
+
+[46] E. B. Nightingale, J. Elson, J. Fan, O. Hofmann, J. Howell, and Y. Suzue. Flat datacenter storage. In Presented as part of the 10th USENIX Symposium on Operating Systems Design and Implementation (OSDI 12), pages 1–15, 2012.
+
+[47] C. Noel and S. Osindero. Dogwild!distributed hogwild for cpu & gpu. In NIPS workshop on Distributed Machine Learning and Matrix Computations, 2014.
+
+[48] C. Olston, B. Reed, U. Srivastava, R. Kumar, and A. Tomkins. Pig latin: a not-so-foreign language for data processing. In Proceedings of the 2008 ACM SIGMOD international conference on Management of data, pages 1099–1110. ACM, 2008.
+
+[49] K. Ousterhout, R. Rasti, S. Ratnasamy, S. Shenker, B.-G. Chun, and V. ICSI. Making sense of performance in data analytics frameworks. In NSDI, 2015.
+
+[50] H. Ouyang, N. He, L. Tran, and A. Gray. Stochastic alternating direction method of multipliers. In Proceedings of the 30th International Conference on Machine Learning, pages 80–88, 2013.
+
+[51] R. Power and J. Li. Piccolo: Building fast, distributed programs with partitioned tables. In USENIX OSDI, pages 293–306, 2010.
+
+[52] B. Recht, C. Re, S. Wright, and F. Niu. Hogwild: A lockfree approach to parallelizing stochastic gradient descent. In NIPS, 2011.
+
+[53] A. Shatdal and J. F. Naughton. Adaptive parallel aggregation algorithms. In ACM SIGMOD Record, volume 24, pages 104–114. ACM, 1995.
+
+[54] K. Simonyan and A. Zisserman. Very deep convolutional networks for large-scale image recognition. arXiv preprint arXiv:1409.1556, 2014.
+
+[55] D. N. Tran, B. Min, J. Li, and L. Subramanian. Sybilresilient online content voting. In NSDI, volume 9, pages 15–28, 2009.
+
+[56] A. Valadarsky, M. Dinitz, and M. Schapira. Xpander: Unveiling the secrets of high-performance datacenters. In Proceedings of the 14th ACM Workshop on Hot Topics in Networks, page 16. ACM, 2015.
+
+[57] L. G. Valiant. A bridging model for parallel computation. Communications of the ACM, 33(8):103–111, 1990.
+
+15
+
+[58] A. Verma, B. Cho, N. Zea, I. Gupta, and R. H. Campbell. Breaking the mapreduce stage barrier. Cluster computing, 16(1):191–206, 2013.
+[59] G. Wang, W. Xie, A. J. Demers, and J. Gehrke. Asynchronous large-scale graph processing made easy. In CIDR, 2013.
+[60] Y. Yu, M. Isard, D. Fetterly, M. Budiu, U´ . Erlingsson, P. K. Gunda, and J. Currey. Dryadlinq: A system for generalpurpose distributed data-parallel computing using a highlevel language. In USENIX OSDI, 2008.
+[61] H. Yun, H.-F. Yu, C.-J. Hsieh, S. Vishwanathan, and I. Dhillon. NOMAD: Non-locking, stOchastic Multi-
+
+machine algorithm for Asynchronous and Decentralized matrix completion. In ACM VLDB, 2014.
+[62] M. Zaharia, M. Chowdhury, T. Das, A. Dave, J. Ma, M. McCauley, M. J. Franklin, S. Shenker, and I. Stoica. Resilient distributed datasets: A fault-tolerant abstraction for in-memory cluster computing. In USENIX NSDI, 2012.
+[63] H. Zhang, Z. Hu, J. Wei, P. Xie, G. Kim, Q. Ho, and E. Xing. Poseidon: A system architecture for efﬁcient gpubased deep learning on multiple machines. arXiv preprint arXiv:1512.06216, 2015.
+
+16
+

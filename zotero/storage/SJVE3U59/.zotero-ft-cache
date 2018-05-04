@@ -1,0 +1,1597 @@
+Asynchronous Complex Analytics in a Distributed Dataﬂow Architecture
+
+Joseph E. Gonzalez, Peter Bailis†, Michael I. Jordan, Michael J. Franklin, Joseph M. Hellerstein, Ali Ghodsi, Ion Stoica
+UC Berkeley and †Stanford University
+
+arXiv:1510.07092v1 [cs.DB] 24 Oct 2015
+
+ABSTRACT
+Scalable distributed dataﬂow systems have recently experienced widespread adoption, with commodity dataﬂow engines such as Hadoop and Spark, and even commodity SQL engines routinely supporting increasingly sophisticated analytics tasks (e.g., support vector machines, logistic regression, collaborative ﬁltering). However, these systems’ synchronous (often Bulk Synchronous Parallel) dataﬂow execution model is at odds with an increasingly important trend in the machine learning community: the use of asynchrony via shared, mutable state (i.e., data races) in convex programming tasks, which has—in a single-node context—delivered noteworthy empirical performance gains and inspired new research into asynchronous algorithms. In this work, we attempt to bridge this gap by evaluating the use of lightweight, asynchronous state transfer within a commodity dataﬂow engine. Speciﬁcally, we investigate the use of asynchronous sideways information passing (ASIP) that presents single-stage parallel iterators with a Volcano-like intra-operator iterator that can be used for asynchronous information passing. We port two synchronous convex programming algorithms, stochastic gradient descent and the alternating direction method of multipliers (ADMM), to use ASIPs. We evaluate an implementation of ASIPs within on Apache Spark that exhibits considerable speedups as well as a rich set of performance trade-offs in the use of these asynchronous algorithms.
+1. INTRODUCTION
+The recent rise of large-scale distributed dataﬂow frameworks has enabled widespread adoption of increasingly sophisticated analytics tasks at scale [11, 23, 37, 46, 84]. The last decade has seen considerable research and industrial effort put towards understanding how to integrate complex analytics and learning tasks into programmer workﬂows [43, 85], existing system architectures [26, 32], and new cluster compute frameworks [44, 72].
+Simultaneously, in the machine learning community, the statistical nature of many of these analytics tasks has led to increasing interest in exploiting asynchrony during computation. That is, a range of recent theoretical results has demonstrated that removing synchronization within an emerging class of problems can yield surprising improvements in performance. These problems can be
+
+solved via highly concurrent update mechanisms that expose, in effect, read-write race conditions [24, 50, 67]. As an example, Recht et al. have demonstrated that stochastic gradient descent—typically implemented via serializable locking (and only proven to converge under serial execution)—can be made robust against asynchronous processing over shared, mutable model state: in effect, when conﬂicts are rare (enough), (some) staleness and data races will not affect statistical correctness [63]. Empirically, on single-node systems, these asynchronous algorithms have yielded order-of-magnitude improvements in performance and are the subject of active research, even within the database community [26, 87, 89].
+Unfortunately, these two trends stand in opposition. Architecturally, commodity distributed dataﬂow systems such as Hadoop and Spark are optimized for coarse-grained (often bulk synchronous parallel [74]) data transformations and are not designed to natively provide the ﬁne-grained communication required for efﬁcient asynchronous analytics tasks. Consequently, evaluation of these new asynchronous algorithms have been largely conﬁned to single-node, multi-processor (and NUMA) context [63, 87]: it is relatively unknown how the increased latency of a distributed environment impacts their performance and correctness guarantees. The technological trajectory outlined by recent research suggests a divide between widely-deployed dataﬂow-based cluster compute frameworks and specialized asynchronous optimization mechanisms, which largely rely on a shared memory abstraction [34, 48, 71].
+In this work, we study this disconnect by addressing two key questions. First, can increasingly ubiquitous dataﬂow systems be easily adapted to support asynchronous analytics tasks? Second, in a distributed dataﬂow environment, what are the beneﬁts (and costs) of these asynchronous algorithms compared with existing synchronous implementations? We present the design and evaluation of a simple dataﬂow operator that i.) enables implementation of asynchronous complex statistical analytics (primarily, convex programming tasks, including Support Vector Machines and Logistic Regression [13]) yet ii.) is implementable using a commodity dataﬂow engine (Apache Spark). We use this operator to study the implications of bringing distributed asynchrony to two classic convex programming procedures: stochastic gradient descent (SGD) [13] and alternating direction method of multipliers (ADMM) [12]. This juxtaposition of traditional BSP systems and algorithms with their incipient asynchronous counterparts yields an opportunity to study the differences between these paradigms.
+To address the ﬁrst, architectural question, we codify and exploit a common pattern in asynchronous analytics tasks. We observe that, on a single machine, these tasks can be cast as single-stage parallel dataﬂow, with shared memory acting as a communication channel between operators. Therefore, to allow asynchronous data sharing during distributed operation, we introduce the Asynchronous Side-
+
+ways Information Passing (ASIP) pattern, in which a set of sharednothing, data-parallel operators are provided access to a special communication channel, called a ASIP iterator, that allows ﬁnegrained communication across concurrent operator instances. The ASIP iterator abstracts the details of distribution and routing (similar to the exchange operator; Section 7) and allows ﬁne-grained communication across operators as in sideways information passing [39]. This enables our target convex programming routines to take advantage of asynchrony within more general purpose distributed dataﬂow systems. We present the design and implementation of a prototype ASIP ASIP iterator system in Apache Spark and discuss the challenges arising from fault tolerance and scheduling. Notably, in our implementation, the bulk of data transfer and computation occurs via the primary iterator interface, exploiting Apache Spark’s strength of efﬁcient parallel computation, while, in the convex optimization routines we study, the ASIP iterator acts as a “control plane” for facilitating ﬁne-grained model synchronization.
+To address the second, more algorithmic question, we evaluate the costs and beneﬁts of distributed, asynchronous execution within two common analytics tasks. We ﬁrst extend BSP SGD (as provided natively in Spark via MLlib [72]) to ASIP gradient descent, using the ASIP iterator to ship ﬁne-grained delta-encoded model updates between operators (approximating a well-studied but—to our knowledge—seldom empirically evaluated algorithm known as dual averaging [24]). We also extend BSP ADMM to the ASIP setting, using the ASIP iterator to ship actual models between parallel operators and leveraging Escrow-like divergence control [57,58] to bound drift imposed by asynchrony. Across a range of learning tasks, both ASIP algorithms demonstrate speedups of up to two orders of magnitude compared to their BSP counterparts. However, the two ASIP algorithms evince a careful trade-off between speed and safety: the fast delta updates of ASIP GD are remarkably efﬁcient when data is well-behaved but can cause instability in pathological workloads. In contrast, ASIP ADMM behaves well across workloads but is generally slower. To the best of our knowledge, this evaluation is the ﬁrst apples-to-apples comparison of these techniques at scale in a distributed setting and on real-world data.
+In summary, we make the following contributions:
+• We present a distributed dataﬂow operator providing intraoperator sideways information passing that is sufﬁcient to implement asynchronous convex optimization routines within existing dataﬂow systems.
+• We present the design and implementation of two asynchronous convex programming routines—gradient descent and ADMM—within the ASIP operator, drawing on the theoretical machine learning literature when possible.
+• We evaluate the costs and beneﬁts of asynchronous convex programming via ASIP within Apache Spark and demonstrate improvements in convergence rates via the use of asynchrony across a range of workloads.
+2. BACKGROUND AND PRELIMINARIES
+The increasingly common collection of “Big Data”—or large datasets—and use of large-scale cluster compute frameworks have enabled the adoption of an increasingly sophisticated array of complex analytics tasks at unprecedented scale (Section 7). In this section, we provide brief background on a large class of complex analytics tasks: statistical optimization via convex programming. We outline traditional and emerging solutions for these tasks and discuss the resulting architectural and algorithmic tensions.
+
+2.1 Our Goal: Statistical Optimization
+
+While statistical analytics takes a variety of forms, a large class of
+
+popular tasks can be categorized as statistical optimization problems
+
+of the form:
+
+1
+
+minimize
+wrt. w
+
+f
+
+(w)
+
+:=
+
+|D|
+
+∑ loss(w, r)
+r∈D
+
++λ
+
+reg(w)
+
+(1)
+
+subject to w ∈ C
+
+That is for some dataset D (of size n = |D|) we want to ﬁnd the value of w ∈ Rd (e.g., a model) that minimizes the loss function loss : (Rn, D) → R (e.g., a measure of the error on a data point) plus a regularization function reg : Rn → R that penalizes complex models. The parameter λ controls the tradeoff between accurately ﬁtting the data and overﬁtting the model to the provided data. In general, w may be constrained to lie in some convex set C (e.g., the set of feasible combinations of guns and butter). In this work we will focus the unconstrained setting C = Rd.
+For example, in portfolio optimization, the loss function might encode the expected (negative) payoff of a stock portfolio w, the regularization function might encode some measure of risk, and the constraints could correspond to a limited budget. Alternatively, in many machine learning and analytics applications, the loss function encodes the prediction error (e.g., squared error) of a model w according to a training set D, the reg function prevents overﬁtting, and the constraints C may impose positivity on the weights to preserve some notion of end-user model interpretability.
+In this work, we speciﬁcally focus on convex programming problems—that is, problems for which the solution space is shaped such that any local minimum is also a global minimum. This convexity allows us to make strong guarantees about the theoretical behavior of tasks such as logistic regression, support vector machines, and portfolio optimization. Convex optimization represents a well-studied research area in the mathematical optimization community (Boyd [13] provides a good technical reference). While many useful statistical analytics tasks—like deep learning, factor model ﬁtting, and LMF recommendation—are non-convex, solvers for convex programming tasks like those we study here are often used to achieve approximations for these problems [22, 26, 63].
+
+2.2 Convex Programming and Asynchrony
+The convex optimization literature contains numerous techniques and associated theoretical analyses for solving convex programs. Here, we present intuition behind one common convex program solver and common and emerging strategies for parallelizing it.
+As a guiding example, consider the gradient descent algorithm. Gradient descent iteratively moves through the solution space by repeatedly evaluating the rate of change, or gradient, at the current solution and greedily taking steps towards solutions in the “steepest” direction (measured by calculating the derivative of the objective function). For readers familiar with hill climbing algorithms, gradient descent is effectively hill climbing (descending) while changing all variables at once according the direction of steepest descent. A popular variant of gradient descent is stochastic gradient descent (SGD), which evaluates the gradient by only looking at a random subset of the data before taking a step, in effect reducing the total number of scans over the data.
+Theory: Serial algorithms. In the theoretical literature (and in the simplest case), gradient descent and SGD are typically expressed as serial algorithms. This is because the gradient calculation at each step is immediately dependent on the calculation from the previous step. Moreover, a serial execution also simpliﬁes analysis
+
+of convergence and runtime.
+BSP: Batched intermediate computation. If we wish to use an algorithm like SGD on large datasets, it would be advantageous to parallelize the calculation. A classic technique—adopted by largescale machine learning frameworks such as MLbase/MLlib [43]—is mini-batch gradient descent in which, at each step, the average gradient is calculated in parallel for a random subset of the data and then applied to the previous best solution. This is, in effect, BSP execution, with the gradient evaluation done in parallel and the actual gradient step performed serially.
+Asynchrony: Breaking the barrier. Recent work in the machine learning community has examined an alternative approach: instead of simply parallelizing gradient computation, a set of parallel solvers proceeds entirely concurrently, relying on asynchronous communication of intermediate gradient steps. As an example, the HOGWILD! implementation of SGD places a single copy of the model in the memory of a multi-core server and runs multiple worker processes that simultaneously run gradient steps in parallel [63]. Each gradient update may partially or completely overwrite or be overwritten by another solver’s update, leading to non-serializable execution. However, empirically, this “lock-free” approach can deliver substantial speedups over serializable mechanisms like locking. Dropping synchronization barriers improves performance without compromising correctness (at least on a single machine).
+The rationale behind HOGWILD! is that, with sufﬁciently rare conﬂicts and sufﬁciently fast communication (i.e., cache coherency delays on the order of tens or hundreds of cycles), correctness can still be guaranteed—even theoretically. The statistical robustness inherent in the SGD algorithm as well as limited read/write inconsistency still leads to a good solution—without incurring the overhead of more coordination-intensive approaches like BSP or locking.
+This asynchronous approach has recently been applied to diverse problems including coordinate descent, deep learning, and portfolio optimization [24, 26, 50, 67, 87]. A burgeoning cottage industry of machine learning researchers has begun to extend asynchronous execution strategies to an increasing number of optimization tasks.
+2.3 Asynchrony and Big Data Systems
+While the beneﬁts offered by asynchrony are compelling, they are currently at odds with the dominant class of large-scale data processing systems. The architectural underpinnings of systems such as Spark, Hadoop, and Tez favor large-scale, bulk data movement and transformation via shared-nothing parallel dataﬂow. The ﬁnegrained communication required by this new class of asynchronous algorithms is largely unsupported by these system architectures and implementations.
+In response, the machine learning community has begun to explore alternative abstractions and systems to leverage asynchrony. For example, in a many-core NUMA setting, DimmWitted [87] exposes a range of options for asynchronous data sharing, including both shared-nothing and shared-model communication and outperforms general cluster compute frameworks like Spark by orders of magnitude. In a distributed context, we similarly observe a shift towards specialized solutions: several recent proposals resemble distributed shared memory—in effect, specialized key-value stores that serve as a point of rendezvous for parallel worker tasks (Section 7).
+In this paper, we question this need to abandon general-purpose parallel frameworks like Apache Spark and Hadoop when performing asynchronous statistical optimization in the distributed setting. Speciﬁcally, to retain the strengths, considerable engineering investments, and, pragmatically, large (and growing) install bases of these frameworks we develop a method to enable asynchronous
+
+NEXT()
+
+ITERATOR LOGIC
+
+OFTEN: REPEATED SCANS
+
+PUSH() POLL()
+
+ASIP
+
+NEXT()
+
+Figure 1: ASIP Iterator Architecture. A set of shared-nothing dataﬂow operators communicate asynchronously via a shared ASIP iterator, allowing efﬁcient and concise implementation of complex analytics tasks without compromising the core dataﬂow abstraction.
+
+convex programming within a general-purpose distributed dataﬂow framework. Somewhat surprisingly, enabling these optimization tasks only requires a minor change to their popular BSP-like iterator interface. However, this in turn raises several new challenges, including support for fault tolerance and efﬁcient task scheduling.
+In the process of evaluating our implementation, we provide the ﬁrst direct evaluation of several asynchronous convex programming techniques in a single distributed environment. While there has been strong interest in the multi-core setting, with excellent experimental evaluations such as [87], there is a currently lack of understanding of the beneﬁts of asynchrony in the distributed setting, which is often less well-behaved than the single-node context under which the assumptions in the theoretical analysis are more likely to apply. For example, we are not aware of a comparison between, say, Spark or Hadoop, and asynchronous SGD on more than one server. With few exceptions, it is largely unknown what beneﬁts (or costs) asynchronous tasks will bring in a practical distributed environment. This task is more algorithmic in nature but is crucial to understanding the utility of the systems challenges we address.
+
+3. THE ASIP PROGRAMMING MODEL
+In this section, we introduce the ASIP programming model—a modest modiﬁcation to sideways information passing that reconciles asynchronous convex programming tasks and iterator-based dataﬂow programs. Using the interface from this section, we will implement ASIP algorithms for two (previously) synchronous distributed convex programs in the next section and defer discussion of architectural and implementation details until Section 5.
+3.1 A Common Programming Pattern
+To begin, we observe that asynchronous optimization routines frequently embody a common pattern: a set of otherwise shared-nothing solvers operate in parallel while periodically sharing progress via a common communication channel. In a single-machine setting, this point of rendezvous is most often a shared weight vector, with the communication being performed by the CPU cache coherence protocol. For example, in HOGWILD! SGD, parallel solvers process separate partitions of input (e.g., training examples), repeatedly and independently of one another, save for their model state—which is shared across all solvers.
+In a dataﬂow-based programming model, this shared state presents an obstacle to distributing these asynchronous solvers. Unlike a single machine, a distributed dataﬂow engine has no natural point of rendezvous for asynchronous, in-band solver communication. We opt for an iterator-based approach in order to preserve compatibility with existing dataﬂow-based runtimes and programs. This explicit control over remote operations makes their cost explicit within the programming model [29]: in the distributed environment, communication is expensive, and the desirable properties of shared memory programming as in HOGWILD! are
+
+negated. Speciﬁcally, latency (and therefore staleness) is higher, data exchange is substantially more expensive due to serialization and networking overheads, and communication no longer comes for “free,” (i.e., provided by the underlying hardware [62, 76]). In this section, we describe a simple modiﬁcation to sideways information passing that allows us to make this distributed asynchronous iteration possible.
+3.2 The ASIP Interface
+The Asynchronous Sideways Information Passing (ASIP) pattern provides a single-operator dataﬂow interface offering asynchronous intra-operator communication via ﬁne-grained iterator-based message transfer (Figure 1). Speciﬁcally, ASIP augments the standard dataﬂow iterator interface (requiring the implementation of a pull-based next() method) with a special shared communication channel—the ASIP iterator [28] (ASIP).1 Each implementation of a ASIP iterator can use this ASIP iterator to communicate with other instances of the same ASIP iterator running in the same stage of the physical dataﬂow graph. Thus, as the name suggests, ASIP is a natural extension of sideways information passing (SIP) [39], albeit applied to asynchronous communication.
+In contrast with traditional dataﬂow models, under which operator outputs are routed to successive stages in the dataﬂow execution graph, ASIP outputs are routed to other instances of physical operators within the same stage, ASIP to typical dataﬂow.2 Like the exchange operator [28], the exact details of cross-operator distribution and physical layout are opaque to the operator implementation [29]. Instead, programmers using ASIP implementers can simply treat the ASIP iterator as a special operator from which they can send and receive intermediate data from concurrently-executing physical operator instances within the same datﬂow stage.
+Unlike a BSP model, in which communication between operators is delayed until the end of each process’s pass through its partition data, under ASIP, processes communicate asynchronously via ASIP. Thus, ASIP adapts the BSP model by eliminating the explicit synchronous barrier in each step of computation and instead allows individual steps to proceed out of phase (Figure 2).
+For now, we restrict our attention to simple, best-effort, uniform broadcast communication (see Section 5). However, like exchange and other uses of SIPs, the actual instantiation and conﬁguration of the ASIP iterator can be controlled by the run-time system or, if desirable, by user code. Notably, since poll does not support blocking, a ASIP iterator instance need not actually run in parallel in order to produce output. As we discuss in Section 7, this interface also resembles a restricted version of a Fjord [54].
+We present the actual ASIP interface in Table 1. In addition to a standard input iterator (child) supporting a standard next() call, a ASIP operator implementation requires a second input, ASIP, representing the ASIP iterator. Using ASIP, a ASIP iterator instance can both perform non-blocking reads (via poll) and send messages (via push) to other physical instances of the same iterator.
+To demonstrate the use of the ASIP interface for asynchronous convex programming tasks, in the next section, we port two parallel BSP learning tasks to the ASIP model. We will discuss the actual
+1In contrast with traditional dataﬂow, where data is pulled from the “bottom” to the “top” of the dataﬂow graph, the ASIP iterator allows both push and pull data transfers from “side” to “side”—that is, perpendicular to primary data ﬂow. This is similar in spirit to Sideways Information Passing (Section 7) and is captured by a simple and familiar interface: the iterator. 2It is conceivable that ASIP outputs might be routed towards multiple, different operators. However, in our study of convex programming applications here, we did not encounter such a requirement, which simpliﬁed much of the design of our prototype ASIP implementation. We view such extensions as worthwhile future work.
+
+TIME
+
+TIME
+
+(a) Traditional BSP
+
+(b) ASIP
+
+Figure 2: Communication patterns for BSP and ASIP. Time runs from left to right, with barriers illustrated as vertical black bars and local computation as colored blocks.
+
+ASIP Operator Inputs Input: child
+.next(): record Input: ASIP
+.push(m: msg) .poll(): msg
+
+Operational Description Access to preceding iterator Fetch next tuple Intra-operator communication Send message to others Non-blocking receive
+
+Table 1: ASIP Programming Model. Each ASIP operator provides an implementation of the next() interface using the listed inputs above: a standard input iterator and a ASIP iterator for intra-operator communication.
+
+implementation of an ASIP, including distribution, message delivery, and fault-tolerance mechanisms in Section 5.
+
+4. PROGRAMMING WITH ASIP
+With the ASIP interface in hand, we now demonstrate how to port two popular BSP convex programming algorithms to ASIP. Our goal is to demonstrate how ASIP can facilitate asynchronous analytics, and not to innovate on new machine learning algorithms. In this section, we present intuition and pseudocode for each. For interested readers, we provide a more mathematically rigorous treatment in the appendix.
+4.1 ASIP Stochastic Gradient Descent
+As we discussed in Section 2, stochastic gradient descent is a popular algorithm for convex programming due to both its relative simplicity and robust behavior in practice. Moreover, the literature already provides evidence of the power of asynchronous SGD in the single-machine case [63, 87]. Therefore, SGD makes an excellent candidate for evaluation in a distributed dataﬂow system.
+We begin with the traditional, BSP-based SGD and remove its synchronous barrier. Recall that in BSP-based SGD, we compute a gradient for a number of samples in parallel, then synchronously collect and sum the gradients before taking a step. In ASIP-based SGD (ASIP-SGD), we avoid this blocking and instead allow individual parallel workers to proceed in parallel—conceptually, just like HOGWILD!, albeit with explicit state transfer between workers.
+To facilitate information transfer between workers without blocking, ASIP-SGD makes use the ASIP ASIP iterator. A direct ASIP interpretation of HOGWILD! would simply push each update onto ASIP and poll on ASIP for new updates, blindly applying them to local model state—in effect, approximating read-write shared memory that is replicated with each worker. However, this is potentially unwise: in addition to serialization overheads, the latency of distributed ASIP messaging is orders of magnitude (hundreds to tens of thousands of times) slower than cache coherency protocols, increasing the chance of solver divergence in the event of conﬂicting updates. Instead, ASIP-SGD workers push their gradients to ASIP
+
+Algorithm 1 ASIP-SGD
+
+ASIP Input
+
+input: random access to partition’s training data, ASIP: iterator queue,
+
+commRate: minimum communication time
+
+ASIP Iterator
+
+1: w ∈ Rd : model ← 0
+
+2: t ∈ I: integer ← 1
+
+3: for t ← 1 . . . T do
+
+4: while ∆ ← ASIP.poll() is not null do
+
+5:
+
+w
+
+←
+
+w
+
+−
+
+√η t
+
+∆
+
+6: (x, label) ← random element of input
+
+7: ∆ ← ∇w loss(w, (x, label)) + λ ∇w reg(w)
+
+8:
+
+w
+
+←
+
+w
+
+−
+
+√η t
+
+∆
+
+9: if commRate has elapsed then
+
+10:
+
+ASIP.push(∆)
+
+11: return w
+
+Algorithm 2 ASIP-ADMM
+
+ASIP Input
+
+input: random access to partition’s training data, ASIP: iterator queue,
+
+commRate: minimum communication time
+
+ASIP Iterator
+
+1: w ∈ Rd : primal ← 0 2: µ ∈ Rd : dual ← 0 3: w¯ ∈ Rd : primal avg. ← 0 4: µ¯ ∈ Rd : dual avg. ← 0 5: z ∈ Rd : consensus ← 0
+6: for k ← 1 . . . K do
+
+7: t ∈ I: integer ← 1
+
+8: while change in w > ε do
+
+Solve the primal
+
+9:
+
+(x, label) ← random element of input
+
+10:
+
+w
+
+←
+
+w
+
+−
+
+√η t
+
+(∇w
+
+loss(w,
+
+(x,
+
+label))
+
++
+
+µ
+
++
+
+ρ
+
+(w
+
+−
+
+z))
+
+11: if commRate has elapsed then
+
+12:
+
+ASIP.push((w − wold, µ − µold))
+
+13:
+
+wold ← w; µold ← µ
+
+14: while (∆w¯ , ∆µ¯ ) ← ASIP.poll() is not null do
+
+15:
+
+w¯ ← w¯ − ∆w¯
+
+16:
+
+µ¯ ← µ¯ − ∆µ¯
+
+17:
+
+z
+
+←
+
+argminz
+
+λ
+
+reg(z)
+
++
+
+zT pρ 2
+
+(z
+
+−
+
+2w¯
+
+−
+
+µ¯ )
+
+Consensus update
+
+18: µ ← µ + ρ (w − z)
+
+Update the dual
+
+19: return w¯
+
+and, upon receipt of a new gradient (via poll), apply the gradient (i.e., add it) to their current model.
+In the appendix, we compare this algorithm with a recently proposed distributed optimization technique (with well-understood theoretical—if not empirically-studied—properties) called dual averaging [24]. In practice, we found that the ASIP-SGD algorithm described here performs slightly better (and is easier to explain). Our ASIP implementation of SGD requires models to be fully replicated, but we discuss partial replication in the next section.
+
+4.2 ASIP ADMM
+As a second mechanism for study, we examine the Alternating Direction Method of Multipliers, or ADMM, a popular synchronous and distributed convex programming routine from the optimization literature [12]. Given an objective function of the form in Eq. (1), ADMM repeatedly invokes (via BSP) a partitioned set of local solvers (say, a single-site implementation of SGD) with a modiﬁed, decomposable version of the original convex programming problem. By carefully manipulating this objective, ADMM iteratively guides each local solver towards an consistent global optimum.
+Theory. We can rewrite the original convex programming problem
+
+Eq. (1) as the equivalent problem:
+
+∑ ∑ minimize
+wrt. w1,...,wp,z
+
+λ
+
+reg(z)
+
++
+
+1 |D|
+
+p i=1
+
+r∈Di
+
+loss(wi,
+
+r)
+
++
+
+ρ 2
+
+wi − z
+
+2 2
+
+subject to ∀i : wi = z
+
+(2)
+
+where we have introduced a separate variable wi ∈ Rd for each of the p machines, a consensus variable z ∈ Rd, and required that all
+
+variables have exactly the same value wi = z. As a consequence,
+
+the
+
+additional
+
+quadratic
+
+penalty
+
+term
+
+ρ 2
+
+wi − z
+
+2 2
+
+=
+
+0
+
+and
+
+therefore
+
+plays no role in the ﬁnal answer. However, this seemingly super-
+
+ﬂuous transformation accomplishes two important goals. First, the
+
+introduction of a separate variable wi for each machine allows us to apply Lagrangian dual techniques to alternate between solving
+
+each sub-problem in isolation and then adjusting the consensus
+
+value z and a dual penalty term to ensure that the independent so-
+
+lutions eventually agree. Second, the additional quadratic penalty
+
+term smooths each of the sub-problems by the constant ρ enabling efﬁcient subproblem solvers and stabilizing the solution.
+
+The resulting algorithm can be neatly cast into the two phases of
+
+the BSP model. In the ﬁrst phase, each machine operates in isolation by updating the dual variables µk based on the previous consensus
+value:
+
+µik+1 ← µik + ρ(wki − zk)
+
+(3)
+
+and then resolving the augmented sub-problem:
+
+∑ wki +1
+
+←
+
+argmin
+w
+
+1 |Di|
+
+r∈Di
+
+loss(w,
+
+r)
+
++
+
+ρ 2
+
+w − zk
+
+2 2
+
++
+
+(w
+
+−
+
+zk
+
+)T
+
+µ
+
+k+1
+
+(4)
+
+The dual update in Eq. (3) essentially increases the cost of disagree-
+
+ing with the consensus value by the constant ρ in the direction of
+
+disagreement. In the synchronization phase of the BSP model, the
+
+latest solutions for all wi and µi are used to recompute the consensus value z:
+
+zk+1
+
+←
+
+argmin
+z
+
+λ
+
+reg(z)
+
++
+
+zT pρ 2
+
+z − 2w¯ k+1 − µ¯ k+1
+
+(5)
+
+where w¯k+1 and µ¯ k+1 are the average values of wki +1 and µik+1 across all the machines. For most regularization functions Eq. (5)
+
+can be computed analytically. For example in the commonly used
+
+L2 regularization (reg(z) =
+
+z
+
+2 2
+
+)
+
+the
+
+solution
+
+to
+
+Eq.
+
+(5)
+
+is
+
+simply:
+
+zk+1 ← ρ p λ +ρp
+
+w¯ k+1 + 1 µ¯ k+1 ρ
+
+a weighted combination of the primal and dual averages.
+
+Intuition. This somewhat complicated-looking algorithm actually
+
+has a simple interpretation. Each solver is given the original ob-
+
+jective function with two useful terms attached. The former, the
+
+consensus
+
+term
+
+(
+
+ρ 2
+
+wi − zk
+
+2 2
+
+),
+
+penalizes
+
+the
+
+new
+
+local
+
+solution
+
+(wi)
+
+for deviating from the previous round’s average of solutions, zk.
+
+We want the local sub-problem to be able to move (otherwise, no
+
+progress would be possible). However, to keep the solver from mov-
+
+ing too far, ADMM attaches a quadratic penalty (the exact penalty is
+
+scaled by a tuning parameter ρ). In effect, the consensus term limits
+
+divergence by acting as a rubber band: local solvers can move from
+
+the previous average, but they will be increasingly penalized for doing so. The latter Lagrangian term, µk(wi − zk), pushes solvers
+
+towards convergence by effectively tilting the solution space based on prior iterations. The Lagrangian variable, µk, is a vector that acts
+
+as a price of deviating and helps direct the local solver.
+
+As further intuition, the ADMM consensus term effectively keeps
+
+the local solvers from deviating too far from one another, while the
+
+Lagrangian helps the local solvers move towards a good solution based on prior progress. In a sense, ADMM acts like the Escrow transaction method and the demarcation protocol from traditional transaction processing: individual solvers “agree” not to deviate too far (due to the quadratic penalty).
+Implementation. Constructing a ASIP variant of the ADMM algorithm (ASIP-ADMM as illustrated in Alg. 2) is relatively straightforward: we again break down the BSP barrier required between primal and dual stages and allow solvers to proceed in parallel. After solving its kth primal stage, each local solver performs a push of its current model and issues a set of poll requests to receive other solvers’s most recent primal variables and update the consensus and Lagrangian terms before continuing.
+While ADMM has been studied extensively in the theoretical literature [12], its empirical beneﬁts in the distributed setting have not been well-studied. Moreover, ASIP-ADMM is reminiscent of proposals for asynchronous ADMM [38, 80], none of which have been empirically evaluated.
+5. EMBEDDING ASIP WITHIN SPARK
+Having introduced the ASIP interface and two applications, we turn our attention to the problem of actually implementing the ASIP abstraction within a distributed dataﬂow system. The relatively simple ASIP interface exposes a wide design space for underlying implementations; in this section, we discuss several dimensions of this design space as well as our experiments implementing a ASIP prototype on top of Apache Spark.
+5.1 Basic ASIP and Dataﬂow Integration
+A primary goal of this work is to introduce asynchronous communication with existing dataﬂow systems. Our proposed answer—the ASIP model, and, in particular, the use of the ASIP operator— poses challenges to implementation in a synchronous distributed dataﬂow system such as Hadoop or Spark. One could simulate an ASIP-like operation by discretely time-stepping via individual BSP rounds [14, 79]. However, this is conceptually at odds with the asynchronous nature of the tasks we study here and potentially expensive for ﬁne-grained messaging in a distributed setting.
+Instead, the most straightforward integration with an existing dataﬂow system is to provide a communication layer between parallel dataﬂow tasks via the local network. One generic strategy for doing so is to simply open sockets between all concurrent ASIP operators and provide a thin implementation of the ASIP interface, similar to implementations of Hadoop AllReduce [44]. This requires knowledge of the physical ASIP operator instances, but this knowledge—modulo fault-tolerance and scheduling, discussed below—is often available from the cluster scheduler.
+Our prototype ASIP implementation resides within Apache Spark, a memory-optimized dataﬂow engine [84]. In our implementation, we forego the complexity of a socket-based interface and instead leverage Spark’s existing actor-based control channel. That is, Spark maintains a communications network that is used for cluster maintenance and scheduling, based on Akka’s Actor system. To implement ASIP ASIP, we register a per-ASIP operator actor instance with each partition within Spark and obtain actor references for all other parallel ASIP operator instances. The ASIP actor within Spark facilitates both push—via one-way messages to other actors—and poll—via an in-actor message queue that is appended to upon message receipt. In summary, given an input Spark RDD (a table) partitioned across machines, we add an additional mapPartitions call to create and register ASIP actors within Spark for each partition and then in turn expose the ASIP iterator to the ASIP operator logic.
+
+5.2 Scheduling Parallel ASIP Operators
+In a departure from traditional cluster scheduling, asynchronous parallel learning tasks must execute concurrently. That is, to perform asynchronous learning, operators must be able to exchange information as they are running. Thus, we adopt a gang-scheduled approach [25] to ASIP stage execution, and, for correct execution, all operators should—in the limit —be able exchange messages. It is unclear how much asynchronous algorithms would beneﬁt from ASIP in a non-gang-scheduled environment (e.g., repeatedly execute a smaller set of isolated ASIP tasks). While we empirically evaluate the effect of minor delays in concurrent processing (Section 6.5), understanding the implications of entirely non-concurrent execution is an interesting area for future work.
+5.3 Message Routing and Delivery
+As we have discussed, there are a number of possible policies for message routing within the ASIP iterator. One of the simplest implementations is simple uniform broadcast between parallel ASIP operator instances: no additional effort is required to conﬁgure topology nor individual message recipients. This is, in fact, the design we currently pursue in our prototype and is the basic communication pattern prescribed by ASIP-SGD and ASIP-ADMM. However, a range of alternative protocols, including variants of multicast, point-to-point communication, and aggregation trees are compatible with the ASIP model. Conceptually, as in Volcano, ASIP’s logical information exchange primitive enables the system to choose the best physical instantiation of message routing given the hardware architecture. However, as networking overhead was not a serious concern in our empirical analysis, we do not further consider this optimization here.
+Similarly, there is an array of options for providing guarantees on message delivery, from best-effort delivery to exactly-once and inorder delivery. In our prototype, we pursue—again—a simple and pragmatic strategy that we ﬁnd works well in practice: best-effort delivery. However, for more demanding analytics tasks, we believe there is interesting work in understanding the implications of these more complex delivery policies.
+5.4 Managing Data and Control Flow
+ASIP messaging in a distributed dataﬂow system incurs several overheads not present in a single-site system. Notably, message serialization incurs substantially higher costs than simple cache-linebased and/or shared-memory communication. In our prototype, we found that—especially in a JVM-based system like Spark—the CPU overheads due to object serialization and deserialization could easily rival the cycles spent on actual optimization if not carefully used.
+To fully leverage the strengths of existing dataﬂow systems, the ASIP iterator implementation should not be used as a primary means of data transfer. Systems like Spark have carefully optimized their data transfer code paths to account for bulk data transfer; as a concrete example, Spark foregoes the use of actors to transfer RDDs but instead uses a second distribution network that is also aware of the semantics of task execution “waves” [19]. Rather, programmers should use ASIP operator as a means of exchanging control messages—periodic synchronization between concurrent ASIP operators. This also preserves any native scheduler functionality providing data locality for individual operator placements. Neither of our ASIP algorithms uses ASIP for actual data transfer between partitions (e.g., re-partitioning training data across machines)—rather, the ASIP operator conveys information about model updates.
+In our prototype implementation of ASIP-SGD, we batch (commutative) gradient updates (as in a MapReduce combiner [23]) to avoid ﬂooding the network, minimizing ASIP trafﬁc. In our proto-
+
+type implementation of ASIP-ADMM, we rate-limit the sending of primal variable updates. This reduces the potentially adverse impact of these additional communication channels.
+5.5 Determinism, Fault Tolerance, Stragglers
+A common tenet of modern large-scale dataﬂow engines (including Spark) is a requirement for deterministic execution [23, 84]. This decision is a departure from traditional dataﬂow engines, which forego mid-query fault tolerance [28]. Nevertheless, at scale, determinism simpliﬁes fault tolerance (simply execute another copy of the operator) and straggler mitigation (again, replicate the operator). Requiring determinism ostensibly also assists in debugging.
+In contrast, ASIP is non-deterministic except under stringent restrictions on ASIP message delivery order and, until now, we have not discussed fault tolerance. It might appear that ASIP is hopelessly at odds with the these systems’ operational model. However, in the context of our asynchronous learning tasks, ASIP is actually quite compatible with these dataﬂow engines.
+In our ASIP implementation, we leverage two key aspects of our learning tasks. First, neither ASIP-SGD nor ASIP-ADMM (nor existing, single-node asynchronous analytics implementations) is serializable, let alone deterministic. Second, their use of the ASIP operator naturally lends itself to task failure and restart: the periodic exchange of model state provides a means of “catching up” with the current cluster state without having to write any additional failure handling routines. Speciﬁcally, a key property of ASIP in the context of these algorithms is that the information exchanged via the ASIP iterator is sufﬁcient—on its own—to (approximately) recover the state of a lost physical operator. If a particular partition fails (or is restarted due to stragglers), the data on that partition can be re-loaded and the operator re-started; the excellent convergence guarantees of dual averaging and ADMM ensure that, despite any temporary deviation from the partition’s predecessor state, the partition’s successor task will eventually converge. Thus, these algorithms are statistically fault tolerant. We empirically evaluate the effect of restarts in our prototype in the next section, and demonstrate that, under reasonable delays, system restarts do not destabilize the ASIP-enabled algorithms.
+Many cluster compute tasks are unlike the learning tasks we study here and will not exhibit this statistical fault tolerance property. Perennial favorite techniques such as asynchronous checkpointing and snapshot [52, 56] can substitute for statistical fault tolerance if needed, and, as always, full task restart is always an option. To provide stronger guarantees on message ordering (thus enabling determinism), we could employ a stronger ordering protocol such as atomic broadcast [41] or other global sequencing layer [73]. Given that the above strategies are sufﬁcient for the complex analytics tasks we consider here, we do not consider these alternatives further.
+In the event of operator duplication due to straggling, duplicate partitions may unfairly skew the learning tasks towards the data in the duplicate partition. One solution to this is to only allow one partition to push to ASIP at a time. Another is to perform a more sophisticated equal-share weighting of duplicate partitions’ push messages. The former solution is potentially less efﬁcient, but the latter strategy unfortunately requires additional application semantics. We currently adopt the former, which we also evaluate in the next section.
+6. EMPIRICAL STUDY OF ROUTINES
+To assess the impact of asynchrony within the ASIP model in the context of convex programming, we implemented and evaluated the ASIP-SGD and ASIP-ADMM algorithms using ASIP on top of Spark. We compare against the corresponding synchronous
+
+algorithms implemented directly in the native Spark dataﬂow abstraction. Where possible, we shared the same subroutines and data representations to isolate the gains due to the asynchrony and the ASIP model from variations in code quality and optimizations.
+As our goal in this work is to study the costs and beneﬁts of asynchronous convex programming routines in general purpose dataﬂow systems, we focus our evaluation on our ASIP-based convex programming routines within Apache Spark. Accordingly, we explicitly do not compare against special purpose, non-dataﬂow computation platforms (e.g., GraphLab). We expect these specialized systems to outperform both Spark and our prototype ASIP implementation for each system’s specialized tasks (e.g., graph computation in GraphLab). Our objectives in the section are to: 1. Demonstrate that, for well-behaved inputs, the asynchronous
+algorithms ASIP-SGD and ASIP-ADMM implemented using the ASIP model demonstrate relative speedups compared to their corresponding dataﬂow-based BSP implementations.
+2. Expose a trade-off between iteration speed and stability deﬁned by the ASIP-SGD and ASIP-ADMM algorithms as well as their dependence on speciﬁc model parameters.
+3. Evaluate the adverse impact sof stragglers and machine failures on the statistical fault tolerance of ASIP-SGD and ASIP-ADMM. The performance and complexity of each convex programming
+task is intimately connected to the size, dimension, and signal of the underlying data as well as the properties of the loss and regularization functions. Accordingly, we evaluate each algorithm on four different publicly available datasets using four combinations of loss and regularization functions. In addition, to understand the effect of skewed data placement, we also evaluate each algorithm on specially crafted synthetic datasets.
+To the best of our knowledge, this is the ﬁrst comprehensive empirical evaluation of distributed synchronous and asynchronous implementations of convex programming algorithms on real-world large-scale tasks using a commodity cluster computing framework.
+6.1 Experimental Setup
+We deployed our prototype a cluster of 16 publicly available EC2 m2.4xlarge worker instances in the Amazon us-west-2 (Oregon) region. Each instance had 68.4 GB of RAM and an eight-core Intel Xeon E5-2665 running at 2.4 GHz and was connected to a commodity Gigabit network. While virtualization can lead to some variability in network and processor performance, we encountered limited variability during our system evaluation.
+In our experiments, we primarily report the total objective value Eq. (1) (training loss plus the scaled regularization penalty) as a function of time. While test error is often a more common metric for machine learning tasks, it conﬂates modeling with the inferential task (estimating the model parameters) that is the focus of convex programming and the algorithms we study. Moreover, by selecting a model (loss function, regularization function, and regularization weighting parameter λ ), the remaining inferential task is entirely governed by the objective function deﬁned in Eq. (1).
+To isolate data-loading costs from the algorithm and system comparison (ﬁxed across algorithms), we exclude the time required to load, format, and appropriately partition the raw input data from HDFS. However, due to optimizations in Spark which exploit data locality and in-memory caching, initialization and data-preprocessing costs were relatively minimal (on the order of 10s of seconds) across all experiment conﬁgurations. This speaks to the advantage of an integrated systems architecture that leverages existing engineering effort in data-centric computation.
+Our default (and vendor recommended) Spark conﬁguration launches a separate worker thread for each core on each machine,
+
+leading to a total of 128 active worker threads. As a consequence, we used 128 ASIP iterators, one per core, with all in-phase communication mediated through the ASIP interface. To ensure fair work balance, we evenly distribute the input records across the 128 worker threads for all datasets. However, for the synthetic datasets, we adversarially assign records to machines based on the record values, leading to an even work balance, but with substantial statistical imbalance in the values (see Section 6.4 for details).
+6.2 Algorithms for Comparison
+In our analysis, we compare the two asynchronous algorithms, ASIP-SGD and ASIP-ADMM, with their BSP counterparts— gradient descent (GD) and alternating direction method of multipliers (ADMM)—as well as a naïve averaging algorithm (AVG). AVG, is perhaps the simplest distributed inference algorithms and divides the problem among each of the machines and then applies a local fast SGD solver to solve the problems independently, averaging the ﬁnal solution. The AVG algorithm, advocated by [26, 90], provides an intuitive coordination-avoiding baseline.
+The closest BSP analog to ASIP-SGD is (mini)batch gradient descent. This algorithm iteratively computes the gradient (of a sample) of the data on each machine, aggregates the gradient across the cluster, and takes a gradient step. The baseline GD algorithm is taken directly from the open-source machine learning library (MLlib) built into Spark [72] and relies on several internal optimizations including parallel reduction trees for more efﬁcient aggregation. We used the default minibatch size suggested by Spark, which is the full dataset size. This is because the Spark sampling routines require a full scan of the data, which is close to the cost of the gradient calculation.
+Our implementation of the ADMM algorithm directly follows the description in Section 4.2. As a local solver for both ADMM and ASIP-A√DMM, we used mini-batch SGD (Pegasos SVM [66]) with an η/ t decreasing step size. This is the same step size conﬁguration used for ASIP-SGD. The mini-batch SGD algorithm computes the gradient of the sub-problem with respect to ﬁxedsized sample of local records and then applies a gradient step. In contrast to vanilla SGD (batch size 1), the mini-batch improves the gradient estimator by averaging over several records. We found that a batch size of 10 to 100 records generally performed well. In our experiments we used a batch size of 10 records.
+The machine learning literature [12] suggests the use of several more sophisticated sub-problem solvers for ADMM (i.e., instead of SGD). We experimented with gradient descent using backtracking line-search as well as the limited memory variant of the BroydenFletcher-Goldfarb-Shanno (l-BFGS) algorithm [15]. While these techniques slightly improved the local objective value and stability they substantially increased wall-clock runtime, generally leading to poor performance as a function of time.
+One of the surprising challenges in our experimental deployment was the algorithms’ sensitivity to the choice of constants (i.e., hyperparameters). Both the ADMM quadratic penalty ρ and the SGD step-size η had a measurable impact on the rate of convergence and stability. We chose a single, reasonably robust setting for these parameters that we applied uniformly across the datasets and objective formulations (see Appendix A, Table 2). Automatically tuning these parameter for different workloads and perhaps even cluster conﬁgurations would likely lead to improved performance and stability at the cost of complexity.
+6.3 Comparison on Real-World Datasets
+To compare the performance of each algorithms, we evaluated them on a range of datasets and training tasks (Figure 3). We consider four real-world publicly available datasets ranging in both
+
+size and dimensionality.
+
+• The flights [2] dataset consists of over 7M airline ﬂight records in 8K dimensions describing one-hot encoded characteristics of each ﬂight and whether it was late. As a consequence of the one-hot encoding the flights is highly sparse and requires only 2.4GB to store in the memory of the cluster.
+• The forest [20] dataset (evaluated in [26]), which relates characteristics of regions of a forest to whether they burn in a forest ﬁre, is the smallest dataset we used, at only half a million records and 54 dimensions.
+• The largest dataset was wikipedia at 6.7M records in 1000 dimensions (dense). The wikipedia dataset was constructed by applying feature hashing [81] to encode the bag-of-words representation of each article in a dense 1000 dimensional space and then predict the presence of the word database in each article.
+• Finally, the DBLP [1] consists of 2.7M records which, like wikipedia, were constructed by hashing the title of each article in DBLP using bag-of-words representation to 1000 dimensional feature space. We predicted, based on the title, whether an article was written before or after 2007.
+
+In addition to the four real-world datasets, we also evaluated four
+
+different learning tasks, achieved by modifying the solver objective
+
+functions. We constructed each function by combining one of two
+
+common classiﬁcation loss functions:
+
+Hinge Loss: loss(x, r = ( f , y)) := max(0, 1 − yxT f )
+
+(6)
+
+Logistic Loss: loss(x, r = ( f , y)) := log 1 + exp(−yxT f ) (7)
+
+corresponding to support vector machines and logistic regression, respectively, with two common regularization functions:
+
+L1 : reg(x) := x 1
+
+(8)
+
+L2 :
+
+1 reg(x) :=
+2
+
+x
+
+2 2
+
+(9)
+
+corresponding to the Lasso and Tikhonov regularization [13]. In
+
+terms of the complexity of the optimization objective, we expect the
+
+hinge loss and L1 regularization function to be the most challenging as they are non-smooth and encourage sparse solutions requiring
+
+greater coordination. While it is not reasonable to compare the
+
+objective value across objective functions, we can compare the
+
+relative performance of each algorithm within each learning task.
+
+Across all the combination of objective function and datasets we
+
+observe (Figure 3) a few common trends. In general, naïve averag-
+
+ing performs poorly, while the ASIP-SGD generally substantially
+
+outperforms the other algorithms. In general, the asynchronous
+
+variants ASIP-SGD and ASIP-ADMM out performed their syn-
+
+chronous counterparts, with ASIP-SGD often outperforming GD by
+
+more than an order of magnitude. In particular, if we consider the
+
+average ratio of the objective at 10 seconds into the computation
+
+across all experiments we ﬁnd that ASIP-SGD is 74 times lower
+
+than that of GD. While the objective of ASIP-ADMM is only 1.2
+
+times lower than that ADMM we show in Figure 6 that in the presence
+
+of a single straggler ASIP-ADMM can yield more than an order of
+
+magnitude reduction in objective value.
+
+The choice of objective value had a noticeable effect on the over-
+
+all convergence. In general, we saw greater variability in the ﬁnal
+
+objective value for L1 regularization, especially when combined with the SVM. Because the L1 objective seeks a sparse solution, it requires greater coordination across processors for convergence,
+
+and, therefore, we would expect algorithms that exploit ASIP com-
+
+munication to converge faster. Indeed, when the L1 objective was
+
+SVM+L2
+
+SVM+L1
+
+LR+L2
+
+LR+L1
+
+450
+
+400
+
+350
+
+300
+
+250
+
+200
+
+150
+
+100
+
+50
+
+0
+
+101
+
+102
+
+1.8
+
+450
+
+1.7 1.6
+
+400 350 300
+
+1.5
+
+250
+
+1.4
+
+200
+
+1.3
+
+150 100
+
+1.2
+
+50
+
+1.1
+
+101
+
+102
+
+0
+
+101
+
+102
+
+1.4
+
+1.3
+
+1.2
+
+1.1
+
+1.0
+
+0.9
+
+0.8
+
+101
+
+102
+
+ﬂights: 7,009,728 records, dimension 8171, 2.4GB RDD (sparse), 688MB raw
+
+4.5
+
+4.0
+
+3.5
+
+3.0
+
+2.5
+
+2.0
+
+1.5
+
+1.0
+
+0.5
+
+101
+
+102
+
+2.5
+
+2.0
+
+1.5
+
+1.0
+
+0.5
+
+101
+
+102
+
+4.0
+
+3.5
+
+3.0
+
+2.5
+
+2.0
+
+1.5
+
+1.0
+
+0.5
+
+101
+
+102
+
+2.0
+
+1.5
+
+1.0
+
+0.5
+
+101
+
+102
+
+forest: 581,012 records, dimension 54, 350.2MB RDD, 507.5MB raw
+
+60
+
+50
+
+40
+
+30
+
+20
+
+10
+
+0
+
+101
+
+6
+
+60
+
+5.0
+
+5
+
+50
+
+4.5 4.0
+
+4
+
+40
+
+3.5
+
+3
+
+30
+
+3.0
+
+2.5
+
+AVG
+
+2 1
+
+20 10
+
+2.0 1.5 1.0
+
+GD ADMM
+
+102
+
+0
+
+101
+
+102
+
+0
+
+101
+
+102
+
+0.5
+
+101
+
+wikipedia: 6,745,869 records, feature hashing to dimension 1000, 51.5GB RDD, 49.0GB raw
+
+ASIP-SGD ASIP-ADMM
+102
+
+70
+
+60
+
+50
+
+40
+
+30
+
+20
+
+10
+
+0
+
+101
+
+102
+
+14
+
+12
+
+10
+
+8
+
+6
+
+4
+
+2
+
+0
+
+101
+
+102
+
+70
+
+60
+
+50
+
+40
+
+30
+
+20
+
+10
+
+0
+
+101
+
+102
+
+14
+
+12
+
+10
+
+8
+
+6
+
+4
+
+2
+
+0
+
+101
+
+102
+
+DBLP: 2,704,455 records, feature hashing to dimension 1000, 20.7GB RDD, 1.5GB raw
+
+Figure 3: Evaluation on Real-World Datasets. We plot the objective value Eq. (1) versus runtime (in seconds) for four real-world datasets using four variations on the objective function. In general we ﬁnd that ASIP-SGD out-performs all other algorithms though is less stable. Alternatively, ASIP-ADMM is more stable and generally out-performs its BSP counterpart.
+
+used on the two dense high-dimensional text datasets, we found that the ADMM based techniques generally performed poorly while ASIP-SGD was able to quickly attain a much lower objective value.
+6.4 Point Cloud: The Effect of Data Skew
+To evaluate the effect of a skewed data placement, we introduced a synthetic dataset with a well understood optimal solution. The synthetic dataset (see Figure 4) consists of two “point clouds,” with Gaussian distributions centered at (0,0) and (5,5). Because this dataset is not separable with a hyperplane passing through the origin, we also introduce an additional bias dimension (achieved by setting the third dimension of each point cloud to one). To evaluate skew, we assigned each machine data points from only one of the two clouds leading to extreme label bias. As a consequence, using only the data available to that machine, it is impossible to recover the optimal solution—communication is required.. Thus, the particular coordination protocol between machines is essential to computing the correct answer. While in general such extreme skew is unlikely,
+
+we believe that for sparser datasets and task speciﬁc data partitioning, it is possible that similar skew could be observed in real-world workloads (e.g., users partitioned by zip code might introduce a strong bias on a feature such as annual income; this is the “CA-TX” problem of [26]).
+In Figure 5, we plot the objective value of each of the algorithms as a function of time for the skewed data placement and the uniform random placement. We show only the SVM+L2 and LR+L1 objectives since these are the most common objectives (although a similar behavior was observed for the other objectives). In contrast to the results on the real-world datasets, we ﬁnd that ASIP-SGD generally performs worse on skewed data. This discrepancy is due in part to the effect of delays in communication and imbalance in communication across machines playing a key role in the ﬁnal solution. Conversely, the more robust behavior achieved by ASIPADMM leads to relatively stable convergence. Interestingly, the spike in objective at 5 seconds in the execution of ASIP-ADMM on the skewed dataset is not noise but actually an artifact of a
+
+10 8 6 4 2 0
+?4 ?2 0 2 4 6 8 10 ?2 ?4
+
+10 8 6 4 2 0
+?4 ?2 0 2 4 6 8 10 ?2 ?4
+
+10 8 6 4 2 0
+?4 ?2 0 2 4 6 8 10 ?2 ?4
+
+10 8 6 4 2 0
+?4 ?2 0 2 4 6 8 10 ?2 ?4
+
+(a) Point Cloud Dataset
+
+(b) ADMM Iteration 2
+
+(c) ADMM Iteration 10
+
+(d) ADMM Iteration 20
+
+Figure 4: Point Cloud Data and Hyperplanes. Here we illustrate the point cloud data set with two classes centered at (0, 0) and (5, 5). The later sequence of plots illustrate the execution of the ADMM algorithm. Each of the black lines corresponds to 1 of the 128 hyperplanes computed on each of the ASIP iterators.
+
+Skewed SVM+L2
+2.5 2.0 1.5 1.0 0.5 0.00 5 10 15 20 25 30 35
+
+Skewed LR+L1
+0.8 0.7 0.6 0.5 0.4 0.3 0.20 5 10 15 20 25 30 35
+
+Uniform SVM+L2
+
+1.0
+
+0.9
+
+AVG
+
+0.8
+
+GD
+
+0.7
+
+ADMM
+
+0.6 0.5 0.4
+
+ASIP-SGD ASIP-ADMM
+
+0.3
+
+0.2
+
+0.10 5 10 15 20 25 30 35
+
+Uniform LR+L1
+0.45 0.40 0.35 0.30 0.25 0.200 5 10 15 20 25 30 35
+
+Figure 5: Comparison of Skewed Synthetic Data. We plot the objective value Eq. (1) versus runtime (in seconds) comparing skewed data placement with uniform data placement. In general, we ﬁnd that highly skewed data-placement causes the ASIP-SGD algorithm to diverge.
+
+temporarily suboptimal solution as a fraction of machines must ﬂip their solutions to achieve consensus.
+6.5 Evaluating Straggler Overheads
+Stragglers are a surprisingly common phenomena, even on isolated workloads [6, 23, 84]. For example, JVM cluster compute frameworks such as Spark often experience long garbage collection pauses. Furthermore the iterative nature of convex programming algorithm only exacerbates the affect of stragglers.
+One of the primary advantages of the ASIP model is that it is inherently robust to stragglers. By eliminating points of blocking coordination, the ASIP model mitigates the affect of slower processors. However, these beneﬁts must be weighted against the possible statistical imbalance that stragglers might introduce. To assess the effect of stragglers on the overall objective in a controlled setting, we introduced a synthetic one second pause every two seconds in just one of the cores in our cluster. In Figure 6 we plot the ratio of the objective with pauses to that without pauses at 5 seconds (dark bar) and 10 seconds (light bar). In general, we notice that the BSP algorithms tend to perform poorly and in some cases are an order of magnitude worse than the ASIP algorithms; in the ASIP algorithms, the straggling processes do not cause the non-straggling processes to stop processing data. Interestingly, in the smaller forest dataset, where the optimal solution is obtained quickly, the introduction of a straggler can temporarily destabilize the solution, but, by 10 seconds, the optimal value is recovered.
+6.6 Evaluating Statistical Fault Tolerance
+As we discussed in Section 5.5, one of the key features of synchronous dataﬂow systems like Spark are that they typically assume tasks are deterministic, enabling logical logging based faulttolerance; this observation forms the foundation of the Spark fault tolerance model. Conversely, as we have discussed, ASIP is nondeterministic, but because ASIP iterators frequently share state, the important state of the system in our algorithms is already replicated. Furthermore, the convex programming algorithms are relatively robust to perturbations in the state of the model enabling fast recovery
+
+from the replicated, inconsistent, state on other machines (i.e., are statistically fault tolerant).
+To determine the degree of statistical fault tolerance under machine failure, we simulate the failure and relaunch of a machine (8 iterators) in our cluster. Using the forest dataset, we inject a machine failure after the initial convergence of 3 seconds and plot (Figure 7) the relative objective at 5 and 10 seconds (lower is better). The smaller timescales reﬂect the relatively fast convergence of the asynchronous techniques. Nonetheless, in Figure 8 (located in the appendix), we consider the effect of introducing error after model convergence (10 seconds) and observe even less of an impact on the objective value at 15 and 30 seconds. While in practice it may take longer to detect a failure and transition computation to an alternative node, we wanted to focus on the impact on the objective and not the issues related to general cluster management. In general, we ﬁnd that the introduction of a node failure has minimal impact in the overall objective, thus demonstrating statistical fault tolerance in this scenario.
+7. RELATED WORK
+Dataﬂow systems. Recent years have seen a resurgence of interest in distributed dataﬂow systems [21, 23, 37, 46, 84], both in research and in industry. These systems continue a long tradition of expressing large-scale data-parallel computation via dataﬂow dating to the earliest relational database systems [6]. Many of these modern systems, like Spark and MapReduce expose a synchronous programming model similar to Valiant’s BSP abstraction [74].
+In this work, we examine the problem of allowing ﬁne-grained data transfer for the purposes of asynchronous analytics within an otherwise synchronous dataﬂow system. This problem has several close relatives in the literature from which we draw inspiration. Volcano’s Exchange operator allows transparent parallelization and distribution of operators [28, 29] (cf. Bubba’s non-transparent bracket model [10]). Our use of ASIP is inspired by Volcano’s exchange but is speciﬁcally designed as a specialized iterator for ﬁne-grained asynchronous model sharing rather than general-purpose, coarse-
+
+Objective Ratio Objective Ratio Objective Ratio Objective Ratio
+
+3.0 2.5 2.0 1.5 1.0 0.5 0.0
+GADSIP-SGD ADAMSIMP-ADMM
+
+2.5 2.0 1.5 1.0 0.5 0.0
+GADSIP-SGD ADAMSIMP-ADMM
+
+14 12 10 8 6 4 2 0
+GADSIP-SGD ADAMSMIP-ADMM
+
+10 8 6 4 2 0 GADSIP-SGD ADAMSMIP-ADMM
+
+(a) forest
+
+(b) ﬂights
+
+(c) dblp
+
+(d) wikipedia
+
+Figure 6: Straggler Experiments. Here we assess the affect of stragglers by introducing a period pause in one of the worker cores to simulate a 1 second GC every two seconds. We plot the ratio of the objective (SVM+L2) with the period pause to the objective without pauses (lower is better). The dark shaded bar is the objective ratio at 5 seconds and the light bar is at 10 seconds. As expected the BSP algorithms are sensitive to stragglers and in some cases resulting in order of magnitude reductions in overall performance.
+
+Objective Ratio Objective Ratio Objective Ratio Objective Ratio
+
+1.2 1.0 0.8 0.6 0.4 0.2 0.0ASIP-SGD ASIP-ADMM
+
+3.0 2.5 2.0 1.5 1.0 0.5 0.0ASIP-SGD ASIP-ADMM
+
+1.4 1.2 1.0 0.8 0.6 0.4 0.2 0.0ASIP-SGD ASIP-ADMM
+
+1.4 1.2 1.0 0.8 0.6 0.4 0.2 0.0ASIP-SGD ASIP-ADMM
+
+(a) forest
+
+(b) ﬂights
+
+(c) dblp
+
+(d) wikipedia
+
+Figure 7: Fault Tolerance Experiment. We plot the ratio of the objective (SVM+L2) after a machine reset 3 seconds into the computation and the objective without reset (lower is better). The dark shaded bar is the objective ratio at 5 seconds and the light bar is at 10 seconds. In general we ﬁnd that the asynchronous algorithms are relatively robust to machine failure.
+
+grained data transfer. ASIP’s non-blocking receive is similar to Fjords, which enable non-blocking computation on data streams, provide multi-input iterators, and can also implement Exchange semantics [54]. Shanmugasundaram et al. also study the problem of producing partial results in the context of online aggregation [68].
+Cyclic dataﬂow has been studied in several contexts, including declarative networking [51], network monitoring [70], and online query optimization [5]. Chandramouli et al. propose the Flying-Fixed-Point operator to track forward progress for cyclic dataﬂow [16]. Naiad’s Timely Dataﬂow uses an elaborate, systemwide timestamping mechanism to track progress and to provide “consistent,” partially-ordered outputs for cyclic dataﬂow (i.e., ﬁxedpoint computation) [56]. In contrast, we target entirely asynchronous data execution between a set of gang-scheduled iterators and therefore do not make use of these techniques. Nevertheless, as we have discussed, efﬁciently extending these asynchronous analytics to a non-gang-scheduled environment appears challenging.
+In-database analytics. The last several years have also seen considerable interest in incorporating advanced statistical analytics into data processing engines at several scales. Within traditional RDBMS systems, these efforts have centered around bringing advanced features such as various clustering [59] and classiﬁcation [17, 31, 55, 60, 77] techniques, Monte Carlo sampling [40, 82], and graphical models and related inference techniques [64, 78, 86] to the database. A related set of efforts has sought to provide uniﬁed in-RDBMS processing capability—that is, common infrastructure
+
+for supporting these tasks [3], including MADLib [32] and Bismarck [26], which provide high-level user interfaces and enable easy addition of new algorithms. In parallel, we have seen a rise of in interest in distributed cluster computation frameworks, with both custom implementations of particular advanced analytics algorithms [8, 47, 61, 69, 75] as well as general-purpose analytics packages such as SystemML [27], MLBase [43], MLI [72], Vowpal Wabbit [44], GraphLab [52], and Cumulon [36] to facilitate them. Our goal in this work is to efﬁciently support asynchronous complex analytics in a generic, distributed dataﬂow environment.
+Convex programming and asynchronous algorithms. The problem of distributed convex optimization has a long history in the literature [13], predating the development of relational algebra by several decades. There are a variety of techniques from this literature that have received considerable theoretical attention and some experimental evaluation; in this paper, we discussed and evaluated several, including distributed averaging [9, 26, 90], BSP-style gradient descent [72], and ADMM [12].
+As we have discussed, our work builds on a trend towards asynchrony in the learning literature. Among this literature, several studies stand out. Most pragmatically, DimmWitted exploits the trade-offs inherent in shared-memory statistical analytics [87]; here, we study the problem of multi-node coordination present in the distributed environment, which brings higher latency and a different set of trade-offs. This work is complementary to ours insofar as our approach is largely agnostic to the local solver on each machine but
+
+is instead concerned with coordinating between solvers. More theoretically, Wei and Ozdaglar [80] propose a variant of
+ADMM in which, in each round, a randomly chosen set of processes (synchronously) takes an ADMM step. This algorithm and a closely related mechanism proposed by Iutzeler et al. [38] provide excellent theoretical convergence guarantees but are, nevertheless, synchronous, and are not evaluated in practice [80]. Zhang et al. leverage partial synchrony and bounded delay to similarly allow additional asynchrony in ADMM execution [88] and provide—as one of few instances in the ADMM literature—an experimental evaluation of their algorithm on a distributed 18-node MPI cluster and synthetic datasets. Their bounded asynchrony is more constrained than our ASIP-ADMM implementation.
+Several recent systems exploit a parameter server to facilitate state sharing during distributed asynchronous model training [18, 22, 35, 49]. These parameter servers effectively act as a two-level aggregation tree for updates, and individual parameter servers expose different data consistency models, such as bounded staleness or causal consistency. These systems closely resemble key-value stores with extensions for abstract data types like vectors, do not support general computation (i.e., are highly specialized for tasks like deep learning [18, 22]), and do not, in general, provide a complete cluster management framework (i.e., the parameter server itself is used by a set of parallel processes external to the server). Thus, while these systems are indeed useful, we seek a more generally applicable architecture for asynchronous state sharing that is compatible with existing, widely deployed dataﬂow systems like Spark (i.e., one that does not require installing another separate system simply for performing complex analytics). Parameter servers simplify partial replication of models, but, given the duality of message passing and shared memory [4, 45], such optimizations are also applicable to the ASIP iterator interface.
+Related database systems concepts. Our resulting ASIP implementation has several close relatives in the broader database literature. As noted in Section 4, standard ADMM is reminiscent of the distributed numerical consensus achieved by the Escrow method [58] and the Demarcation protocol [7]. Related techniques for re-balancing and/or bounding numerical error across replicas [57, 83] are similarly applicable to the problem of maintaining ASIP-ADMM consensus variables, which we have only touched upon in this work. Our implementation of ASIP is reminiscent of Sideways Information Passing in traditional dataﬂow architectures [39], which allows data transfer between parallel operators and has been successfully applied in diverse domains such as join [53] and magic set [65] evaluation. We develop the ASIP iterator interface as a means of achieving similar, ﬁne-grained data sharing between a set of primary operators that repeatedly accesses data (i.e., implement UDA functionality for repeated passes of partitioned data). As a useful lens on our techniques, the sharing of primal variables in ASIP-ADMM can be considered an instance of query shipping [42] (instead of data/delta shipping, as in [63]).
+Finally, the ASIP framework shares some similarities with the actor model [33]. Indeed, (largely as a convenience) we leveraged the Akka actor system implementation used in Spark for data transfer in the ASIP iterator. However, unlike actors, the ASIP iterators are pull-based, inherently data-centric, and their creation is managed by the by dataﬂow system and not the user deﬁned logic. These restrictions simplify our design and provide additional latitude in managing partitioning of the data and movement of information across operators—providing a sweet spot in the design space between a lower-level primitive like MPI [30] or sockets and higher-level programming models such as actors.
+
+8. CONCLUSIONS AND FUTURE WORK
+In this paper, we presented the ASIP abstraction to enable asynchronous complex analytics within the context of traditional, data-parallel (and otherwise synchronous) dataﬂow systems. ASIP presents an iterator-centric programming model with a special ASIP iterator used to communicate asynchronously between concurrent iterator instances within a single dataﬂow stage. We ported two popular convex programming algorithms—SGD and ADMM—to our prototype implementation of the ASIP on top of the Spark dataﬂow system. By leveraging the statistical robustness of these operators, we provide fault tolerant implementations that substantially outperform their synchronous counterparts written directly in Spark.
+While the ASIP abstraction is targeted at asynchronous complex analytics tasks, it would be interesting to extend them to more general computation tasks (e.g., early stopping criteria for online aggregation [68]). This will undoubtedly require modiﬁcations to the fault tolerance model, including more complex checkpointing schemes.
+We also believe it would be interesting to allow ASIP algorithms to be executed deterministically in order to better support debugging and replay. One strategy for accomplishing this would be to divide ASIP operator execution into ﬁnite epochs (e.g., by periodically pausing the operator execution thread) and only allowing ASIP operator message delivery within epochs. Checkpointing each operator’s input queue (e.g., as an RDD) would enable deterministic replay, albeit at a cost to both storage and runtime overheads.
+Finally, we are interested in exploring alternative communication patterns including aggregation trees to reduce the cost of ASIP iterator use during the exchange of larger models than those we consider here. We suspect that adapting mechanisms such as the demarcation protocol [7], escrow transactional method [58], and approximate replication techniques [57] to track divergence between solvers and reduce sharing will further reduce these costs.
+Acknowledgments
+This research was supported in part by NSF CISE Expeditions Award CCF-1139158, LBNL Award 7076018, DARPA XData Award FA8750-12-2-0331, the NSF Graduate Research Fellowship (grant DGE-1106400), and gifts from Amazon Web Services, Google, SAP, The Thomas and Stacey Siebel Foundation, Adatao, Adobe, Apple, Inc., Blue Goji, Bosch, C3Energy, Cisco, Cray, Cloudera, EMC, Ericsson, Facebook, Guavus, Huawei, Informatica, Intel, Microsoft, NetApp, Pivotal, Samsung, Splunk, Virdata, VMware, and Yahoo!.
+9. REFERENCES [1] Dblp dataset. http://dblp.uni-trier.de/xml/. Accessed: 09/07/14.
+[2] Flights dataset. http://www.transtats.bts.gov. Accessed: 09/01/14. [3] M. Akdere, U. Cetintemel, M. Riondato, E. Upfal, and S. B. Zdonik. The case
+for predictive database systems: Opportunities and challenges. In CIDR, 2011. [4] H. Attiya, A. Bar-Noy, and D. Dolev. Sharing memory robustly in
+message-passing systems. Journal of the ACM (JACM), 42(1):124–142, 1995. [5] R. Avnur and J. M. Hellerstein. Eddies: Continuously adaptive query
+processing. In SIGMOD, 2000. [6] S. Babu and H. Herodotou. Massively parallel databases and mapreduce
+systems. Foundations and Trends in Databases, 5, 2013. [7] D. Barbará-Millá and H. Garcia-Molina. The demarcation protocol: A
+technique for maintaining constraints in distributed database systems. The VLDB Journal, 3(3):325–353, July 1994. [8] R. Bekkerman, M. Bilenko, and J. Langford. Scaling up machine learning: Parallel and distributed approaches. Cambridge University Press, 2011. [9] D. P. Bertsekas and J. N. Tsitsiklis. Parallel and distributed computation: numerical methods. Prentice-Hall, Inc., 1989. [10] H. Boral, W. Alexander, L. Clay, G. Copeland, S. Danforth, M. Franklin, B. Hart, M. Smith, and P. Valduriez. Prototyping Bubba, a highly parallel database system. TKDE, 2(1):4–24, 1990.
+
+[11] V. Borkar, M. J. Carey, and C. Li. Inside big data management: ogres, onions, or parfaits? In EBDT, 2012.
+[12] S. Boyd, N. Parikh, E. Chu, B. Peleato, and J. Eckstein. Distributed optimization and statistical learning via the alternating direction method of multipliers. Foundations and Trends in Machine Learning, 3(1):1–122, 2011.
+[13] S. Boyd and L. Vandenberghe. Convex optimization. Cambridge university press, 2009.
+[14] Y. Bu, B. Howe, M. Balazinska, and M. D. Ernst. Haloop: Efﬁcient iterative data processing on large clusters. In VLDB, 2010.
+[15] R. H. Byrd, P. Lu, J. Nocedal, and C. Zhu. A limited memory algorithm for bound constrained optimization. SIAM Journal on Scientiﬁc Computing, 16(5):1190–1208, 1995.
+[16] B. Chandramouli, J. Goldstein, and D. Maier. On-the-ﬂy progress detection in iterative stream queries. In VLDB, pages 241–252, 2009.
+[17] F. Chen, X. Feng, C. Re, and M. Wang. Optimizing statistical information extraction programs over evolving text. In ICDE, 2012.
+[18] T. Chilimbi, Y. Suzue, J. Apacible, and K. Kalyanaraman. Project adam: building an efﬁcient and scalable deep learning training system. In Proceedings of the 11th USENIX conference on Operating Systems Design and Implementation, pages 571–582. USENIX Association, 2014.
+[19] M. Chowdhury, M. Zaharia, J. Ma, M. I. Jordan, and I. Stoica. Managing data transfers in computer clusters with orchestra. In SIGCOMM, 2011.
+[20] P. Cortez and A. Morais. A data mining approach to predict forest ﬁres using meteorological data. In New Trends in Artiﬁcial Intelligence, 2007.
+[21] A. Crotty, A. Galakatos, K. Dursun, T. Kraska, U. Cetintemel, and S. Zdonik. Tupleware: Redeﬁning modern analytics, 2014. arXiv:14 6.6667.
+[22] J. Dean, G. Corrado, R. Monga, K. Chen, M. Devin, M. Mao, A. Senior, P. Tucker, K. Yang, Q. V. Le, et al. Large scale distributed deep networks. In NIPS, 2012.
+[23] J. Dean and S. Ghemawat. Mapreduce: Simpliﬁed data processing on large clusters. In OSDI, 2004.
+[24] J. C. Duchi, A. Agarwal, and M. J. Wainwright. Dual averaging for distributed optimization: convergence analysis and network scaling. Automatic Control, IEEE Transactions on, 57(3), 2012.
+[25] D. G. Feitelson and L. Rudolph. Gang scheduling performance beneﬁts for ﬁne-grain synchronization. Journal of Parallel and Distributed Computing, 16(4):306–318, 1992.
+[26] X. Feng, A. Kumar, B. Recht, and C. Ré. Towards a uniﬁed architecture for in-RDBMS analytics. In SIGMOD, 2012.
+[27] A. Ghoting, R. Krishnamurthy, E. Pednault, B. Reinwald, V. Sindhwani, S. Tatikonda, Y. Tian, and S. Vaithyanathan. SystemML: Declarative machine learning on MapReduce. In ICDE, 2011.
+[28] G. Graefe. Encapsulation of parallelism in the volcano query processing system. In SIGMOD, 1990.
+[29] G. Graefe. Iterators, schedulers, and distributed-memory parallelism. Software: Practice and Experience, 26(4):427–452, 1996.
+[30] W. Gropp, E. Lusk, and A. Skjellum. Using MPI: portable parallel programming with the message-passing interface, volume 1. MIT press, 1999.
+[31] R. Gupta and S. Sarawagi. Creating probabilistic databases from information extraction models. In VLDB, 2006.
+[32] J. M. Hellerstein, C. Ré, F. Schoppmann, D. Z. Wang, E. Fratkin, A. Gorajek, K. S. Ng, C. Welton, X. Feng, K. Li, et al. The madlib analytics library: or mad skills, the sql. In VLDB, 2012.
+[33] C. Hewitt, P. Bishop, and R. Steiger. A universal modular actor formalism for artiﬁcial intelligence. In IJCAI, pages 235–245, 1973.
+[34] Q. Ho, J. Cipar, H. Cui, S. Lee, J. K. Kim, P. B. Gibbons, G. A. Gibson, G. Ganger, and E. Xing. More effective distributed ml via a stale synchronous parallel parameter server. In NIPS, 2013.
+[35] Q. Ho, J. Cipar, H. Cui, S. Lee, J. K. Kim, P. B. Gibbons, G. A. Gibson, G. Ganger, and E. Xing. More effective distributed ml via a stale synchronous parallel parameter server. In Advances in Neural Information Processing Systems, pages 1223–1231, 2013.
+[36] B. Huang, S. Babu, and J. Yang. Cumulon: Optimizing statistical data analysis in the cloud. In SIGMOD, 2013.
+[37] M. Isard, M. Budiu, Y. Yu, A. Birrell, and D. Fetterly. Dryad: distributed data-parallel programs from sequential building blocks. In EuroSys, 2007.
+[38] F. Iutzeler, P. Bianchi, P. Ciblat, and W. Hachem. Asynchronous distributed optimization using a randomized alternating direction method of multipliers. In IEEE CDC, 2013.
+[39] Z. G. Ives and N. E. Taylor. Sideways information passing for push-style query processing. In ICDE, 2008.
+[40] R. Jampani, F. Xu, M. Wu, L. L. Perez, C. Jermaine, and P. J. Haas. Mcdb: a monte carlo approach to managing uncertain data. In SIGMOD, 2008.
+[41] B. Kemme, F. Pedone, G. Alonso, A. Schiper, and M. Wiesmann. Using optimistic atomic broadcast in transaction processing systems. Knowledge and Data Engineering, IEEE Transactions on, 15(4):1018–1032, 2003.
+[42] D. Kossmann. The state of the art in distributed query processing. ACM Computing Surveys (CSUR), 32(4):422–469, 2000.
+[43] T. Kraska, A. Talwalkar, J. C. Duchi, R. Grifﬁth, M. J. Franklin, and M. I.
+
+Jordan. Mlbase: A distributed machine-learning system. In CIDR, 2013.
+[44] J. Langford, L. Li, and A. Strehl. Vowpal wabbit online learning project, 2007.
+[45] H. C. Lauer and R. M. Needham. On the duality of operating system structures. ACM SIGOPS Operating Systems Review, 13(2):3–19, 1979.
+[46] M. Leich, J. Adamek, M. Schubotz, A. Heise, A. Rheinländer, and V. Markl. Applying stratosphere for big data analytics. In BTW, 2013.
+[47] B. Li, S. Tata, and Y. Sismanis. Sparkler: Supporting large-scale matrix factorization. In EBDT, 2013.
+[48] M. Li, D. G. Andersen, J. W. Park, A. J. Smola, A. Ahmed, V. Josifovski, J. Long, E. J. Shekita, and B.-Y. Su. Scaling distributed machine learning with the parameter server. In OSDI, 2014.
+[49] M. Li, D. G. Andersen, J. W. Park, A. J. Smola, A. Ahmed, V. Josifovski, J. Long, E. J. Shekita, and B.-Y. Su. Scaling distributed machine learning with the parameter server. In Proc. OSDI, pages 583–598, 2014.
+[50] J. Liu, S. J. Wright, C. Ré, and V. Bittorf. An asynchronous parallel stochastic coordinate descent algorithm. In ICML, 2014.
+[51] B. T. Loo, T. Condie, J. M. Hellerstein, P. Maniatis, T. Roscoe, and I. Stoica. Implementing declarative overlays. In SOSP, 2005.
+[52] Y. Low, D. Bickson, J. Gonzalez, C. Guestrin, A. Kyrola, and J. M. Hellerstein. Distributed graphlab: a framework for machine learning and data mining in the cloud. In VLDB, 2012.
+[53] L. F. Mackert and G. M. Lohman. R* optimizer validation and performance evaluation for local queries. In VLDB, 1986.
+[54] S. Madden and M. J. Franklin. Fjording the stream: An architecture for queries over streaming sensor data. In ICDE, 2002.
+[55] B. L. Milenova, J. S. Yarmus, and M. M. Campos. SVM in Oracle Database 10g: removing the barriers to widespread adoption of support vector machines. In VLDB, 2005.
+[56] D. G. Murray, F. McSherry, R. Isaacs, M. Isard, P. Barham, and M. Abadi. Naiad: a timely dataﬂow system. In SOSP, 2013.
+[57] C. Olston. Approximate Replication. PhD thesis, Stanford University, 2003. [58] P. E. O’Neil. The escrow transactional method. ACM TODS, 11(4):405–430,
+1986.
+[59] C. Ordonez. Integrating k-means clustering with a relational DBMS using SQL. IEEE TKDE, 18(2):188–201, 2006.
+[60] C. Ordonez and S. K. Pitchaimalai. Bayesian classiﬁers programmed in sql. Knowledge and Data Engineering, IEEE Transactions on, 22(1):139–144, 2010.
+[61] B. Panda, J. S. Herbach, S. Basu, and R. J. Bayardo. Planet: Massively parallel learning of tree ensembles with MapReduce. 2009.
+[62] J. Protic, M. Tomasevic, and V. Milutinovic´. Distributed shared memory: Concepts and systems, volume 21. John Wiley & Sons, 1998.
+[63] B. Recht, C. Ré, S. Wright, and F. Niu. Hogwild: A lock-free approach to parallelizing stochastic gradient descent. In NIPS, 2011.
+[64] P. Sen, A. Deshpande, and L. Getoor. Exploiting shared correlations in probabilistic databases. In VLDB, 2008.
+[65] P. Seshadri, J. M. Hellerstein, H. Pirahesh, T. Leung, R. Ramakrishnan, D. Srivastava, P. J. Stuckey, and S. Sudarshan. Cost-based optimization for magic: Algebra and implementation. In SIGMOD, 1996.
+[66] S. Shalev-Shwartz, Y. Singer, N. Srebro, and A. Cotter. Pegasos: Primal estimated sub-gradient solver for svm. Mathematical programming, 127(1):3–30, 2011.
+[67] S. Shalev-Shwartz and T. Zhang. Accelerated mini-batch stochastic dual coordinate ascent. In NIPS, 2013.
+[68] J. Shanmugasundaram, K. Tufte, D. DeWitt, D. Maier, and J. F. Naughton. Architecting a network query engine for producing partial results. In WebDB. 2001.
+[69] K. Shim. Mapreduce algorithms for big data analysis. In VLDB, 2012.
+[70] A. Singh, P. Maniatis, T. Roscoe, and P. Druschel. Using queries for distributed monitoring and forensics. In EuroSys, 2006.
+[71] A. Smola and S. Narayanamurthy. An architecture for parallel topic models. In VLDB, 2010.
+[72] E. R. Sparks, A. Talwalkar, V. Smith, J. Kottalam, X. Pan, J. Gonzalez, M. J. Franklin, M. I. Jordan, and T. Kraska. Mli: An api for distributed machine learning. In ICDM, 2013.
+[73] A. Thomson, T. Diamond, S. Weng, K. Ren, P. Shao, and D. Abadi. Calvin: Fast distributed transactions for partitioned database systems. In SIGMOD 2012.
+[74] L. G. Valiant. A bridging model for parallel computation. Communications of the ACM, 33(8):103–111, 1990.
+[75] R. Vernica, M. J. Carey, and C. Li. Efﬁcient parallel set-similarity joins using mapreduce. In SIGMOD, 2010.
+[76] J. Waldo, G. Wyant, A. Wollrath, and S. Kendall. A note on distributed computing. Technical Report SMLI TR-94-29, Sun Microsystems Laboratories, 1997.
+[77] D. Z. Wang, M. J. Franklin, M. Garofalakis, and J. M. Hellerstein. Querying probabilistic information extraction. In VLDB, 2010.
+[78] D. Z. Wang, E. Michelakis, M. Garofalakis, and J. M. Hellerstein. Bayesstore: managing large, uncertain data repositories with probabilistic graphical models.
+
+In VLDB, 2008.
+[79] G. Wang, W. Xie, A. J. Demers, and J. Gehrke. Asynchronous large-scale graph processing made easy. In CIDR, 2013.
+[80] E. Wei and A. Ozdaglar. On the o (1/k) convergence of asynchronous distributed alternating direction method of multipliers. arXiv preprint arXiv:1307.8254, 2013.
+[81] K. Weinberger, A. Dasgupta, J. Langford, A. Smola, and J. Attenberg. Feature hashing for large scale multitask learning. In ICML, 2009.
+[82] M. Wick, A. McCallum, and G. Miklau. Scalable probabilistic databases with factor graphs and MCMC. In VLDB, 2010.
+[83] H. Yu, A. Vahdat, et al. Efﬁcient numerical error bounding for replicated network services. In VLDB, 2000.
+[84] M. Zaharia, M. Chowdhury, T. Das, A. Dave, J. Ma, M. McCauley, M. J. Franklin, S. Shenker, and I. Stoica. Resilient distributed datasets: A fault-tolerant abstraction for in-memory cluster computing. In NSDI, 2012.
+[85] C. Zhang, A. Kumar, and C. Ré. Materialization optimizations for feature selection workloads. SIGMOD, 2014.
+[86] C. Zhang and C. Ré. Towards high-throughput gibbs sampling at scale: A study across storage managers. In SIGMOD, 2013.
+[87] C. Zhang and C. Ré. DimmWitted: A study of main-memory statistical analytics. In VLDB, 2014.
+[88] R. Zhang and J. Kwok. Asynchronous distributed admm for consensus optimization. In ICML, 2014.
+[89] Y. Zhuang, W.-S. Chin, Y.-C. Juan, and C.-J. Lin. A fast parallel sgd for matrix factorization in shared memory systems. In RecSys, 2013.
+[90] M. Zinkevich, M. Weimer, L. Li, and A. J. Smola. Parallelized stochastic gradient descent. In NIPS, 2010.
+
+APPENDIX
+A. EXPERIMENTAL DETAILS
+The choice of algorithm parameters can have a considerable impact in the overall performance of each algorithm. We made a best effort to ﬁnd consistent parameters settings for each of the algorithms. While we explored tuning these parameters on a per-dataset basis we ultimately settled on a single set of consistently performing default parameters which are summarized in Table 2.
+
+GD Batch Size SGD η0
+ADMM Primal residual ε Lagrangian ρ Primal solve max. SGD iterations SGD η0 SGD batch size
+ASIP-SGD Maximum ASIP push rate SGD steps between ASIP poll requests SGD η0 SGD batch size
+ASIP-ADMM Maximum ASIP push rate Primal residual ε Primal solve max. SGD iterations Lagrangian ρ Records per gradient step SGD η0 SGD batch size
+
+all records in partition 1e-1
+1.0e-5 1.0e-2 10000
+1e-1 10 records
+once per 10ms 10
+1e-1 10 records
+once per 100ms 1.0e-5 10000 1.0e-2 10 1e-1
+10 records
+
+Table 2: Summary of parameters used in experiments
+A.1 Fault Tolerance Experiments:
+To better understand the fault tolerance behavior we also considered the effect of introducing a machine failure later in the program
+
+execution after convergence (at 10 seconds rather than 3 seconds). In Figure 8 we plot the ratio of the objective with a fault over the objective without a fault. Again we observe that the algorithm naturally recovers to a similar objective value.
+B. ASIP PSEUDOCODE
+In section 4 we provided a high-level sketch of the ASIP convex programming algorithms. Here we provide a more detailed presentation of the implementation of these algorithms in the ASIP programming model using a scala like syntax as well as their simpler BSP counter-parts. In both cases we note the similarity in their complexity and design.
+In Listing 1 we implement the user deﬁned function (UDF) for our distributed stochastic gradient descent solver. At a high-level this algorithm closely follows the traditional serial algorithm with the added loop over the ASIP iterator and horizontal broadcast (asip.push). In comparison, the basic batch gradient descent algorithm (Listing 2) is not much simpler than the ASIP formulation of distributed asynchronous gradient descent. The ASIPDualAveraging algorithm (Listing 3) shares some similarity with the SGD algorithm though the primal updates are a more uniformly weighted sum of the dual updates. In practice we found that the ASIP-SGD algorithm generally performs better.
+def sgdUDF(data: Input, asip: ASIPIterator) = {
+// External Constants val eta = 1. // Learning rate val regParam = 1. // Regularization parameter
+var w = InitialModel() var wOld = null var t = for (t in 1 to T)
+wOld = w while (asip.hasNext) {
+w = w - (eta / sqrt(t)) * asip.next() } val (x, y) = data.nextWithLoop() val grad = lossGradient(w, (x, y)) +
+regParam * regGradient(w) w = w - (eta / sqrt(t)) * grad asip.push(grad) } return w }
+Listing 1: ASIP-SGD: The implementation of the ASIP user deﬁned function for the SGD algorithm
+// External constants val eta = 1. // Learning rate val regParam = 1. // Regularization parameter
+var w = InitialModel() var wOld = null var t = for (t in 1 to T) {
+wOld = w val grad = data.map { case (y, x) =>
+lossGradient(w, (x, y)) }.avg() + regParam * regGradient(w)
+
+Objective Ratio Objective Ratio Objective Ratio Objective Ratio
+
+1.0 0.8 0.6 0.4 0.2 0.0ASIP-SGD ASIP-ADMM
+
+1.2 1.0 0.8 0.6 0.4 0.2 0.0ASIP-SGD ASIP-ADMM
+
+1.4 1.2 1.0 0.8 0.6 0.4 0.2 0.0ASIP-SGD ASIP-ADMM
+
+1.2 1.0 0.8 0.6 0.4 0.2 0.0ASIP-SGD ASIP-ADMM
+
+(a) forest
+
+(b) ﬂights
+
+(c) dblp
+
+(d) wikipedia
+
+Figure 8: Additional Fault Tolerance Experiments. We plot the ratio of the objective (SVM+L2) after a machine reset 10 seconds into the computation and the objective without reset (lower is better). The dark shaded bar is the objective ratio at 15 seconds and the light bar is at 30 seconds. In general we ﬁnd that the asynchronous algorithms are relatively robust to machine failure.
+
+w = w - (eta / sqrt(t)) * grad } return w
+Listing 2: Batch Gradient Descent: An implementation of batch gradient descent using the standard dataﬂow operators.
+def dualAveragingUDF(data: Input, asip: ASIPIterator) = {
+// External constants val eta = 1. // Learning rate val regParam = 1. // Regularization parameter
+var dualSum = ZeroVector() var dual = ZeroVector() var w = InitialModel() var wOld = null for (t in 1 to T) {
+wOld = w while (asip.hasNext) {
+dualSum = dualSum + asip.next() } val (x, y) = data.nextWithLoop() val grad = lossGradient(w, (x, y)) +
+regParam * regGradient(w) dualOld = dual dual = dualSum / nWorkers + grad w = -(eta / sqrt(t)) * dual asip.push(dual - dualOld) } return w }
+Listing 3: ASIP Dual-Averaging UDF
+In Listing 4 we present the ASIP formulation of the ADMM algorithm. The ASIP formulation, closely follows the synchronous variant of ADMM with a horizontal exchange stage before applying the consensus and dual updates. In Listing 5 we present the similar BSP formulation. As before the BSP and ASIP formulations share similar structure and implementation complexity.
+def admmUDF(data: Input, asip: ASIPIterator) = {
+// External constants val eta = 1. // Learning rate val regParam = 1. // Regularization parameter val rho = 1. // Consensus parameter
+
+val nodes = 128 // Number of iterators
+var primalAvg = ZeroVector() var dualAvg = ZeroVector() var consensus = InitialModel() var w = InitialModel() var wOld = Empty() var dual = ZeroVector() for (k in 1 to K) {
+wOld = w // Primal Update var t = while ( change(w) < eps ) {
+val (x, y) = data.nextWithLoop() val grad = lossGradient(w, (x, y))
++ dual + rho * (w - consensus) w = w - (eta / sqrt(t)) * grad t += 1 } // Exchange asip.push((w - wOld, dual dualOld) / nodes) while (asip.hasNext) { (primalAvg, dualAvg) += asip.next() } // Consensus Update consensus = consensusProx(primalAvg, dualAvg) // Dual Update val dualOld = dual dual = dual + rho * (consensus - z) } return consensus }
+Listing 4: ASIP ADMM UDF
+// External constants val eta = 1. // Learning rate val regParam = 1. // Regularization parameter val rho = 1. // Consensus parameter val nodes = 128 // Number of iterators
+var consensus = spark.Broadcast(InitialModel()) var consensusOld = Empty() var primalDual = spark.parallelize(
+Array.fill(nodes)((InitialModel(), Zero())) )
+
+for (k in 1 to K) { primalDual = data.zipPartitions(primalDual) { (data, Iterator(w), Iterator(dual)) => // Primal Update var t = var w = InitialModel() val z = consensus.value while ( change(w) < eps ) { val (x, y) = data.nextWithLoop() val grad = lossGradient(w, (x, y)) + dual + rho * (w - z) w = w - (eta / sqrt(t)) * grad t += 1 } Iterator((w, dual)) ).cache()
+// Collect primal and dual averages val (wAvg, dualAvg) = primalDual.avg() val z = consensusFun(wAvg, dualAvg) // Broadcast consensus value consensusOld = consensus consensus = spark.Broadcast(consensus) // Execute dual update in parallel primalDual.map { case (w, dual) =>
+dual + rho * (w - consensus.value) } } return consensus
+Listing 5: BSP-ADMM: A BSP implementation of ADMM using dataﬂow operators.
+
+C. MATHEMATICAL DERIVATIONS:
+The convex programming methods we considered here require that we be able to construct the gradient (or sub-gradient) of the loss and regularization terms in the objective. Below we derive the corresponding sub-gradients for the loss functions:
+∇whingeLoss(w, (y, x)) = ∇w(1 − ywT x)
+−yw if ywT x < 1 =
+0 otherwise
+
+∇wlogisticLoss(w, (y, x)) = ∇w((1 − y) log 1 − σ (wT x) + y log σ (wT x))
+
+= y − σ (wT x) x
+
+and for the regularization penalties:
+
+∇wL2(w)
+
+=
+
+∇w
+
+1 2
+
+||w||22
+
+=
+
+w
+
+ −1 
+∇wL1(w) = ∇w|w|1 = [−1, 1]
+
+1
+
+if w < 0 if w = 0 if w > 0
+
+D. ADMM
+While Boyd et al. [12] provide an exceptional overview of the mathematical background behind the ADMM algorithm, in this section we summarize the key details used in this work.
+
+We employ the method of dual-decomposition to break the single convex programming problem into a collection of p convex programming problems one for each of p processors (iterators):
+
+1p
+
+∑ ∑ minimize
+wrt. w1,...,wp,z
+
+|D| i=1 r∈Di loss(wi, r) + λ reg(z)
+
+(10)
+
+subject to wi = z
+
+where we have partitioned the data across machines and constrained the solutions to the sub-problems to match a shared variable z. Note that a solution to this problem is also a solution to the original convex programming problem. We introduce an additional augmenting term to the above equation without changing the optimal values of w1, . . . , wp and z:
+
+∑ ∑ minimize
+wrt. w1,...,wp,z
+
+1p |D| i=1
+
+r∈Di
+
+loss(wi, r)
+
++
+
+ρ 2
+
+wi − z
+
+2 2
+
++ λ reg(z)
+
+subject to wi = z
+
+(11)
+
+When the constraints are satisﬁed then
+
+ρ 2
+
+wi − z
+
+2 2
+
+= 0.
+
+The in-
+
+troduction of this additional term will play an important role in
+
+smoothing the sub-problems and enabling an analytic z update.
+
+Thus far the constraints wi = z couple each sub-problem making it difﬁcult to solve in parallel. However, we can remove the
+
+constraints wi = z by introducing Lagrange multipliers and moving the constraints into the objective. We thus obtain the following
+
+Lagrangian:
+
+L({wi}1p, z, {µi}1p) =
+
+1p
+
+|D|
+
+∑
+i=1
+
+∑r∈Di
+
+loss(wi,
+
+r)
+
++
+
+µiT
+
+(wi
+
+−
+
+z)
+
++
+
+ρ 2
+
+wi − z
+
+2 2
+
++ λ reg(z) (12)
+
+leading to the dual formulation of the problem:
+
+max
+µ1 ,...,µ p
+
+w1
+
+min
+,...,w
+
+p
+
+,z
+
+L({wi
+
+}1p
+
+,
+
+z,
+
+{µi
+
+}1p
+
+)
+
+(13)
+
+Assuming strong duality (which can be shown under mild assumptions) the solution to this dual problem is a solution to our original problem.
+We can solve the dual problem (Eq. (13)) in stages by alternating between primal and dual updates, hence the name Alternating Direction Method of (dual) Multipliers. The ADMM algorithm is then broken into the following sequence of iterates:
+
+∑ wi
+
+←
+
+arg
+
+min
+wi
+
+r∈Di
+
+loss(wi,
+
+r)
+
++
+
+µiT
+
+(wi
+
+−
+
+z)
+
++
+
+ρ 2
+
+wi − z
+
+2 2
+
+(14)
+
+∑ z
+
+←
+
+arg min
+z
+
+p i=1
+
+µiT
+
+(wi
+
+−
+
+z)
+
++
+
+ρ 2
+
+wi − z
+
+2 2
+
++
+
+λ
+
+reg(z)
+
+(15)
+
+µi ← µi + ρ(wi − z)
+
+(16)
+
+The primal updates in equations 14 and 15 solve convex subproblems while the dual update in equation 16 adjusts the sub-problems towards agreement.
+The ADMM decomposition of the convex programming problem has a few useful properties. First Eq. (14) and Eq. (16) can be solved locally on each processor without access to the data or state on either processors. Second Eq. (15) can be further simpliﬁed:
+
+z
+
+←
+
+argmin
+z
+
+λ
+
+reg(z)
+
++
+
+zT pρ 2
+
+(z
+
+−
+
+2w¯
+
+−
+
+µ¯ )
+
+(17)
+
+where w¯ = (1/p) ∑i wi and µ¯ = (1/p) ∑i µi are the averages of the variables on each processor.
+
