@@ -11714,6 +11714,16 @@ ul.typeahead-list > li > a {
 .ansi-bold { font-weight: bold; }
 
     </style>
+<style type="text/css">
+    .rendered_html {
+	font-family: Palatino;
+	font-size: 16px;
+}
+
+.rendered_html pre, .rendered_html code {
+	font-size: 14px;
+}
+    </style>
 
 
 <style type="text/css">
@@ -11802,7 +11812,7 @@ div#notebook {
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>2018-05-04 11:49:43.104378
+<pre>2018-05-06 11:44:38.333277
 </pre>
 </div>
 </div>
@@ -11827,7 +11837,7 @@ div#notebook {
 <div class="text_cell_render border-box-sizing rendered_html">
 <h1 id="Change-log-summary">Change log summary<a class="anchor-link" href="#Change-log-summary">¶</a></h1><h2 id="Training-set-generator-function">Training set generator function<a class="anchor-link" href="#Training-set-generator-function">¶</a></h2><p>Now domains of all samples' components are centered at the same value $c$. Such domains are determined as follows.</p>
 <p>Is defined $K = \{k_1,...k_p\}$ where $k_j$ is the domain radius of variables $x_{ij}$ for all $i=1...n$.
-Let $x_i=(x_{i1},...,x_{ip}) \in X$ be a sample of the training set, then the domain of $x_{ij}$ is $D(x_{ij}) = [c-k_j, c+k_j]$.</p>
+Let $\mathbf{x}_i=(x_{i1},...,x_{ip}) \in \mathbf{X}$ be a sample of the training set, then the domain of $x_{ij}$ is $D(x_{ij}) = [c-k_j, c+k_j]$.</p>
 <div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">sample_from_function</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">n_features</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="n">domain_radius</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">domain_center</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">error_mean</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">error_std_dev</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
     <span class="n">X</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>
@@ -11900,7 +11910,7 @@ Let $x_i=(x_{i1},...,x_{ip}) \in X$ be a sample of the training set, then the do
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>[ 4.00713793 -0.33902602  0.13068124  1.6246818 ]
+<pre>[4.37783798 4.6585231  3.53514373 0.33641019]
 </pre>
 </div>
 </div>
@@ -11913,7 +11923,7 @@ Let $x_i=(x_{i1},...,x_{ip}) \in X$ be a sample of the training set, then the do
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>These are the centers of variables $x_1, x_2, x_3$ and $x_4$ respectively.</p>
+<p>These are the centers of variables $x_{i1}, x_{i2}, x_{i3}$ and $x_{i4}$ respectively (for all samples $\mathbf{x}_i$).</p>
 
 </div>
 </div>
@@ -11948,16 +11958,16 @@ Let $x_i=(x_{i1},...,x_{ip}) \in X$ be a sample of the training set, then the do
 
 <div class="output_subarea output_stream output_stdout output_text">
 <pre>X = 
-[   array([1.14678659, 4.72191439, 4.88513418, 4.385389  ]),
-    array([6.3692572 , 5.30138619, 5.01406369, 5.63875345]),
-    array([4.67455441, 5.21725698, 5.02592469, 5.45187453]),
-    array([8.22688716, 5.23973922, 5.01244772, 5.39299295]),
-    array([6.31345814, 4.74067851, 5.02559019, 5.67637608]),
-    array([1.11971923, 4.88378811, 4.88175249, 6.00179764]),
-    array([2.11584329, 4.96572785, 5.04728619, 5.44922452]),
-    array([7.86286299, 4.94175031, 5.12274525, 4.64251712])]
-y = array([15.78801252, 22.09363563, 19.78453008, 24.20968846, 22.6499015 ,
-       15.91160444, 17.96298163, 24.32308662])
+[   array([8.86135596, 0.59650704, 7.89945263, 4.86388638]),
+    array([2.52712042, 4.61653757, 4.0474921 , 5.27962049]),
+    array([6.56859146, 8.86926043, 3.47471024, 4.80907589]),
+    array([9.26435672, 1.89323231, 6.45206366, 4.76576175]),
+    array([1.80069393, 8.85002721, 8.25671332, 4.8460325 ]),
+    array([5.46694822, 4.84770207, 7.91061236, 5.22243605]),
+    array([2.43201591, 3.40751097, 3.59995415, 4.70240224]),
+    array([8.34625522, 5.49974881, 7.50720151, 5.17537506])]
+y = array([21.64911785, 18.22716286, 23.498126  , 22.85686049, 22.92216278,
+       22.94384164, 13.75403854, 26.40275925])
 </pre>
 </div>
 </div>
@@ -11970,7 +11980,7 @@ y = array([15.78801252, 22.09363563, 19.78453008, 24.20968846, 22.6499015 ,
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Above is printed the training set $\mathcal{X} = (X,y)$.</p>
+<p>Above is printed the training set $\mathcal{X} = (\mathbf{X},\mathbf{y})$.</p>
 
 </div>
 </div>
@@ -12177,7 +12187,7 @@ That's why the correct way to compute the global metrics is to retrieve from eac
 <li>"Node $i$ is at iteration $t$" means it has already computed the $t$-th step of the gradient descent method, thus $w_t$ is its the most recent weight vector owned by $i$.</li>
 <li>"Node $i$ computes/performs iteration $t$" means that $i$ is performing the update $\mathbf{w}^{(t)} = \mathbf{w}_{(t-1)} - \alpha \nabla Err$.</li>
 </ul>
-<p>The <em>cluster</em> model (the object that supervises the distributed simulation) has an <code>iteration</code> field too, it is equal to the fewest iteration among all nodes. <code>cluster.iteration</code> being equal to $t$ means that each node has already performed at least $t$ updates of its local $w_t$ but at least one node has not computed $w_{t+1}$ yet, thus a global $w_t$ can be retrieved (and used to compute metrics for instance).</p>
+<p>The <em>cluster</em> model (the object that supervises the distributed simulation) has an <code>iteration</code> field too, it is equal to the fewest iteration among all nodes. <code>cluster.iteration</code> being equal to $t$ means that each node has already performed at least $t$ updates of its local $\mathbf{w}_t$ but at least one node has not computed $\mathbf{w}_{t+1}$ yet, thus a global $\mathbf{w}_t$ can be retrieved (and used to compute metrics for instance).</p>
 <h2 id="Single-iteration-time">Single iteration time<a class="anchor-link" href="#Single-iteration-time">¶</a></h2><blockquote><p><strong><code>time.perf_counter()</code></strong></p>
 <p>Return the value (in fractional seconds) of a performance counter, i.e. a clock with the highest available resolution to measure a short duration. It does include time elapsed during sleep and is <strong>system-wide</strong>. The reference point of the returned value is undefined, so that only the difference between the results of consecutive calls is valid.</p>
 <p><em>(from the <a href="https://docs.python.org/3/library/time.html#time.perf_counter">Python Standard Library Documentation</a>)</em></p>
