@@ -1,15 +1,15 @@
 {
 	"translatorID": "ecddda2e-4fc6-4aea-9f17-ef3b56d7377a",
-	"translatorType": 12,
 	"label": "arXiv.org",
 	"creator": "Sean Takats and Michael Berkowitz",
 	"target": "^https?://([^\\.]+\\.)?(arxiv\\.org|xxx\\.lanl\\.gov)/(find|catchup|list/\\w|abs/|pdf/)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 12,
 	"browserSupport": "gcsv",
-	"lastUpdated": "2018-04-17 16:20:00"
+	"lastUpdated": "2018-04-17 20:00:00"
 }
 
 function detectSearch(item) {
