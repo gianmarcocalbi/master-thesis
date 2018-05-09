@@ -11716,13 +11716,18 @@ ul.typeahead-list > li > a {
     </style>
 <style type="text/css">
     .rendered_html {
-	font-family: Palatino;
+	font-family: "Palatino";
 	font-size: 16px;
 }
 
 .rendered_html pre, .rendered_html code {
 	font-size: 14px;
 }
+
+.MathJax {
+	/*font-size: 12px !important;*/
+}
+
     </style>
 
 
@@ -11812,7 +11817,7 @@ div#notebook {
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>2018-05-06 11:44:38.333277
+<pre>2018-05-09 16:56:40.185650
 </pre>
 </div>
 </div>
@@ -11910,7 +11915,7 @@ Let $\mathbf{x}_i=(x_{i1},...,x_{ip}) \in \mathbf{X}$ be a sample of the trainin
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>[4.37783798 4.6585231  3.53514373 0.33641019]
+<pre>[ 0.44198953  1.9481798  -1.49959856  1.01668072]
 </pre>
 </div>
 </div>
@@ -11958,16 +11963,16 @@ Let $\mathbf{x}_i=(x_{i1},...,x_{ip}) \in \mathbf{X}$ be a sample of the trainin
 
 <div class="output_subarea output_stream output_stdout output_text">
 <pre>X = 
-[   array([8.86135596, 0.59650704, 7.89945263, 4.86388638]),
-    array([2.52712042, 4.61653757, 4.0474921 , 5.27962049]),
-    array([6.56859146, 8.86926043, 3.47471024, 4.80907589]),
-    array([9.26435672, 1.89323231, 6.45206366, 4.76576175]),
-    array([1.80069393, 8.85002721, 8.25671332, 4.8460325 ]),
-    array([5.46694822, 4.84770207, 7.91061236, 5.22243605]),
-    array([2.43201591, 3.40751097, 3.59995415, 4.70240224]),
-    array([8.34625522, 5.49974881, 7.50720151, 5.17537506])]
-y = array([21.64911785, 18.22716286, 23.498126  , 22.85686049, 22.92216278,
-       22.94384164, 13.75403854, 26.40275925])
+[   array([5.37032778, 6.29100973, 5.72032956, 5.43438236]),
+    array([4.66305858, 3.34548427, 5.14708299, 5.41838302]),
+    array([5.00628829, 3.19783286, 5.31753886, 4.73632976]),
+    array([4.73260391, 6.73899143, 4.66784   , 4.16967232]),
+    array([4.90894434, 4.95661299, 5.38971386, 4.38624915]),
+    array([5.06179789, 6.00136489, 4.34276386, 5.8234328 ]),
+    array([4.98171602, 5.12110173, 5.40159503, 4.43189702]),
+    array([4.67157295, 5.21412259, 5.45578386, 5.51415348])]
+y = array([22.56730517, 17.06408342, 17.25788021, 20.04283249, 17.61923674,
+       21.29562433, 20.9233294 , 21.43263977])
 </pre>
 </div>
 </div>
@@ -12711,12 +12716,11 @@ holds also for the speed: the cycle is faster than the diam-expander which in tu
 <h3 id="Iteration-speed-lower-bound">Iteration speed lower bound<a class="anchor-link" href="#Iteration-speed-lower-bound">¶</a></h3><p>Let $k$ be the degree of a regular dependency graph $G$. $V_l$ is the velocity lower bound in terms of iterations per node and per time, so the unit of measurement is $\frac{\text{# iterations}}{\text{time}}$.</p>
 <p>In the worst case the node most advanced in the computation will need to wait for all its neighbours and only then it can start a new iteration.</p>
 <p>In such case, if computations are I.I.D (independent and identically distributed) exponentials $X_1, X_2, ..., X_n$ with parameter $\lambda$, the mean time each node have to wait is</p>
-<p>$$T = \mathbb{E}[max (X_S \subseteq \{X_1,...,X_n\})] = \frac{1}{\lambda}\sum_{i=1}^{k} \frac{1}{i}$$.</p>
+<p>$$\overline{W} = \mathbb{E}[max (X_S \subseteq \{X_1,...,X_n\})] = \frac{1}{\lambda}\sum_{i=1}^{k} \frac{1}{i}$$</p>
+<p>then it can perform an update of its local model with rate (velocity) $\lambda$. Therefore the total time taken by a node to advance by one iteration is</p>
+<p>$$\overline{T} = \frac{1}{\lambda} + \overline{W} = \frac{1}{\lambda} + \frac{1}{\lambda}\sum_{i=1}^{k} \frac{1}{i} = \frac{1}{\lambda} (1 + \sum_{i=1}^{k} \frac{1}{i}).$$</p>
 <p>The per-node iteration rate (e.g. the speed to perform a single iteration step) will be</p>
-<p>$$V = \frac{1}{T} = \frac{\lambda}{\sum_{i=1}^{k}\frac{1}{i}}$$</p>
-<p>so</p>
-<p>$$V_l = \frac{\lambda}{1+\sum_{i=1}^{k}\frac{1}{i}} \sim \frac{\lambda}{\ln k} \text{ for large } k$$</p>
-<p>is a lower bound for $V$.</p>
+<p>$$\overline{V} = \frac{1}{\overline{T}} = \frac{\lambda}{1 + \sum_{i=1}^{k}\frac{1}{i}} \sim \frac{\lambda}{\ln k} \text{ for large } k.$$</p>
 <h4 id="Comparison-with-exact-calculations-for-the-clique-($k=n-1$)">Comparison with exact calculations for the clique ($k=n-1$)<a class="anchor-link" href="#Comparison-with-exact-calculations-for-the-clique-(%24k=n-1%24)">¶</a></h4><p>$$V = \frac{\lambda}{\sum_{i=1}^{k}\frac{1}{i}} &gt; \frac{\lambda}{1+\sum_{i=1}^{n-1}\frac{1}{i}} = V_l$$</p>
 <h4 id="Why-is-it-a-lower-bound-for-$k=1$">Why is it a lower bound for $k=1$<a class="anchor-link" href="#Why-is-it-a-lower-bound-for-%24k=1%24">¶</a></h4><p><img src="data:image/png;base64,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" alt="Example"></p>
 <p><code>a</code> is the most advanced node (e.g. <code>a.iteration</code> $&gt;$ <code>b.iteration</code> and <code>a.iteration</code> $&gt;$ <code>c.iteration</code>), so it is waiting for <code>b</code> to finish its calculations, but actually <code>b</code> already got the required input from <code>c</code>, then, as soon as <code>b</code> finishes with the current computation, both <code>a</code> and <code>b</code> can move to compute to the next step. Then the next iteration will be computed by the most advanced node (it can be either <code>a</code> or <code>b</code>) after $\frac{1}{\lambda} + \frac{1}{2 \lambda}$ and not after $\frac{1}{\lambda} + \frac{1}{\lambda}$ as considered by the lower bound.</p>
