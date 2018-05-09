@@ -22,3 +22,4 @@ Below all hyperlinks to jupyter notebooks provided with a short summary of their
     - how much nodes' degree matters in speed gain;
     - how much graph's diameter matters in speed gain;
     - __iteration speed lower bound__;
+- [3rd conf-call Nizza-Milano Jupyter notebook](./3rd-conf-call-report.html)
