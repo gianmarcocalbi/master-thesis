@@ -11817,7 +11817,7 @@ div#notebook {
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>2018-05-15 15:58:53.072454
+<pre>2018-05-16 17:24:08.473303
 </pre>
 </div>
 </div>
@@ -11858,7 +11858,7 @@ div#notebook {
 <p><em>(from 2nd-conf-call-report)</em></p>
 </blockquote>
 <h2 id="Actually-it-is-not-a-lower-bound">Actually it is not a lower bound<a class="anchor-link" href="#Actually-it-is-not-a-lower-bound">¶</a></h2><p><strong>Why?</strong>
-When <code>a</code> ends its calculation for iteration $t$, then it have to wait for <code>b</code> to finish iteration $t$ to proceed to compute iteration $t+1$. But there's no guarantee that by the time <code>a</code> finishes, then <code>b</code> has already got the necessary outcomes from its parent to perform iteration $t$, maybe <code>b</code> is still waiting for <code>c</code> to finish iteration $t-1$, while <code>a</code> has already finished iteration $t$. Hence such is not a lower bound. However it seems to be very near to the lower bound so for the tests in this report I will use it as lower bound.</p>
+When <code>a</code> ends its calculation for iteration $t$, then it have to wait for <code>b</code> to finish iteration $t$ to proceed to compute iteration $t+1$. But there's no guarantee that by the time <code>a</code> finishes, then <code>b</code> has already got the necessary outcomes from its parents to perform iteration $t$, perhaps <code>b</code> is still waiting for <code>c</code> to finish iteration $t-1$, while <code>a</code> has already finished iteration $t$. Hence $V_l$ is not a lower bound. However it seems to behaves as a lower bound is supposed to do, so for the tests in this report I will exploit it as lower bound.</p>
 <p>The speed almost-lower bound is</p>
 <p>$$V_l = \frac{\lambda}{1+\sum_{i=1}^{k} \frac{1}{i}}.$$</p>
 <p>The bound of the iterations' amount given by $V_l$ is</p>
@@ -11904,22 +11904,54 @@ When <code>a</code> ends its calculation for iteration $t$, then it have to wait
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="A-hypothetical-real-(and-very-pessimistic)-lower-bound">A hypothetical real (and very pessimistic) lower bound<a class="anchor-link" href="#A-hypothetical-real-(and-very-pessimistic)-lower-bound">¶</a></h2><p>$$V_l = \frac{\lambda}{d + \sum_{i=1}^{k} \frac{1}{i}}$$</p>
-<p>where $d$ is the graph's diameter.</p>
-<p>Consider node $u$ being at iteration $t$. Let $\vec{d}(u,v)$ (distance) be the minimum amount of directed edges one needs to cross in order to go from $u$ to $v$ (obviously edges must be crossed in the right direction), then:</p>
+<h2 id="Lower-bound-for-$k=1$">Lower bound for $k=1$<a class="anchor-link" href="#Lower-bound-for-%24k=1%24">¶</a></h2><p>$$V_l = \frac{\lambda}{1 + \sum_{j=0}^{\delta-1} \sum_{i=1}^{\frac{n}{\delta}(\delta-j)} \frac{1}{i}}$$</p>
+<p>where $\delta = n-1$ is the graph's diameter.</p>
+<p>Let $a$ be the most advanced node in computation and suppose it being at iteration $t$. _Remember "node $v$ is at iteration $t$" means that $v$ has already performed the $t$-th update of its local model, so it owns $\mathbf{w}^{(t)}_v$_.</p>
+<p>Let $d(u,v)$ be the "directed" distance from $u$ to $v$, e.g. the minimum amount of directed edges one needs to cross in order to go from $u$ to $v$ (obviously edges can be crossed just in the proper direction), then:</p>
 <ul>
-<li>nodes at distance $d(u,\_) = 1$ from $u$ must be at least at iteration $t-1$;</li>
-<li>nodes at distance 2 from $u$ must be at least at iteration $t-2$;</li>
-<li>etc.</li>
-<li>nodes at distance $l$ from $u$ must be at least at iteration $t-l$; $l \leq d$.</li>
+<li>nodes at distance 1 from $a$ must be at least at iteration $t-1$;</li>
+<li>nodes at distance 2 from $a$ must be at least at iteration $t-2$;</li>
+<li>in general, nodes at distance $l : l \leq \delta$ from $a$ must be at least at iteration $t-l$.</li>
 </ul>
-<p>Due to exponential memoryless property all exponential variables that rule the duration of each node's iteration can be regenerated. Therefore right now node $u$ is starting iteration $t$ and nodes at distance $l$ from $u$ are starting iteration $t-l$.</p>
+<p>Due to exponential memoryless property, all exponential variables that rule the duration of each node's iteration can be regenerated in any moment. Therefore is legit assuming that right now node $a$ is starting iteration $t$ and nodes at distance $l$ from $a$ are starting iteration $t-l$ for all $l \leq \delta$.</p>
+<p>The worst case for node $a$ is the following:</p>
+<ul>
+<li>by the time node $a$ finishes iteration $t$ it doesn't own the required input from its parent $b$ to start iteration $t+1$. So: node $a$ has finished, all random exponential variables can be regenerated, $a$ have to wait for $b$ to finish;</li>
+<li>but $b$ cannot start iteration $t$ since it is still waiting $c$ for its outcome (e.g. $c$ hasn't performed iteration $t-1$ yet); the same for the node $c$ at distance 3 from $a$: it is waiting its parent ($d$), and so on up to the node at distance $\delta$ from $a$, it is actually a straggler, indeed it is slowing down the whole computation.</li>
+</ul>
+<p>In this case, the time taken by the slowest node at distance $\delta$ is distributed as $max \{X_1,...,X_n\}$ (where $X_i \sim Exp(\lambda)$ and $n$ is the total amount of computational units) since it is. After waiting this time node at distance $\delta-1$ from $a$ can starting computing, etc. A chain of calculations starts up to the node at distance 1 from $a$, and, after they have finished their computations, then $a$ can go on to the next iteration. The time taken by the slowest node at distance $\delta-1$ from $a$ is distributed as $max \{ X_1,...,X_{(n-1)}\}$. In general, the time taken by the slowest node at distance $l$ from $a$ is distributed as $max \{ X_1,...,X_{\delta+1-l}\}$. So the time $a$ have to wait to start iteration $t+1$ is distributed as</p>
+<p>$$Z = \sum_{l=0}^{\delta-1} max \{X_1,...,X_{\delta+1-l}\}$$</p>
+<p>$$\mathbb{E}[Z] = \frac{1}{\lambda} \sum_{l=0}^{\delta-1} \sum_{i=1}^{\delta+1-l} \frac{1}{i} = \frac{1}{\lambda}(\frac{3}{2}\delta+\sum_{i=1}^{\delta-1} \frac{\delta-i}{\delta+2})$$</p>
+<p>Clearly this situation is very rare, but it gives the most pessimistic lower bound of the time a node should wait in order to perform one iteration.</p>
+<p><strong>In the following tests the <em>almost</em>-lower bound will be used (and not the latter).</strong></p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="A-hypothetical-real-(and-very-pessimistic)-lower-bound-$\forall-k$">A hypothetical real (and very pessimistic) lower bound $\forall k$<a class="anchor-link" href="#A-hypothetical-real-(and-very-pessimistic)-lower-bound-%24%5Cforall-k%24">¶</a></h2><p>$$V_l = \frac{\lambda}{1 + \sum_{j=0}^{d-1} \sum_{i=1}^{\frac{n}{d}(d-j)} \frac{1}{i}}$$</p>
+<p>where $d$ is the graph's diameter.</p>
+<p>Let $u$ be the most advanced node in computation and suppose it being at iteration $t$. _Remember "node $u$ is at iteration $t$" means that $u$ has already performed the $t$-th update of its local model, so it owns $\mathbf{w}^{(t)}_u$_.</p>
+<p>Let $d(u,v)$ be the "directed" distance from $u$ to $v$, e.g. the minimum amount of directed edges one needs to cross in order to go from $u$ to $v$ (obviously edges can be crossed just in the proper direction), then:</p>
+<ul>
+<li>nodes at distance 1 from $u$ must be at least at iteration $t-1$;</li>
+<li>nodes at distance 2 from $u$ must be at least at iteration $t-2$;</li>
+<li>in general, nodes at distance $l : l \leq d$ from $u$ must be at least at iteration $t-l$.</li>
+</ul>
+<p>Due to exponential memoryless property, all exponential variables that rule the duration of each node's iteration can be regenerated in any moment. Therefore is legit assuming that right now node $u$ is starting iteration $t$ and nodes at distance $l$ from $u$ are starting iteration $t-l$ for all $l \leq d$.</p>
 <p>The worst case for node $u$ is the following:</p>
 <ul>
-<li>it is the fastest, so by the time it finishes iteration $t$ all other nodes are still computing. Node $u$ has finished, all random exponential variables can be regenerated, $u$ have to wait for the slowest node among those at distance 1 from it;</li>
-<li>by the time all nodes at distance 1 finish, all nodes ad distance greater than 1 from $u$ are still computing. All random variables such nodes can be regenerated. After waiting Nodes at distance 1 have to wait the slowest at distance 2, etc.</li>
+<li>by the time node $u$ finishes iteration $t$ it doesn't own inputs from its parent to start iteration $t+1$. So, node $u$ has finished, all random exponential variables can be regenerated, $u$ have to wait for the slowest node among those at distance 1 from it;</li>
+<li>but nodes at distance 1 from $u$ cannot start iteration $t$ since their still waiting their parents for their outcomes (e.g. nodes at distance 2 from $u$ haven't performed iteration $t-1$ yet); the same for nodes at distance 2 from $u$: they are waiting their parents, and so on up to nodes at distance $d$ from $u$, a straggler belongs to them, it is slowing down the whole computation.</li>
 </ul>
-<p>In this case, the time taken by the slowest node at distance $d$ is distributed as $max \{X_1,...,X_n\}$. After waiting this time a chain of calculations starts up to nodes at distance 1 from $u$, and after they have finished their computations, then $u$ can go on to the next iteration. So the total time for $u$ to advance by one iteration in $\mathbb{E}[max \{X_1,...,X_n\}] + \frac{1}{\lambda} d$, that is just the time taken by the clique.</p>
+<p>In this case, the time taken by the slowest node at distance $d$ is distributed as $max \{X_1,...,X_n\}$ (where $X_i \sim Exp(\lambda)$ and $n$ is the total amount of computational units) since it is . After waiting this time a chain of calculations starts up to nodes at distance 1 from $u$, and after they have finished their computations, then $u$ can go on to the next iteration. The time taken by the slowest node at distance $d-1$ from $u$ is distributed as $max \{ X_1,...,X_{(n-\frac{n}{d})}\}$. In general, the time taken by the slowest node at distance $l$ from $u$ is distributed as $max \{ X_1,...,X_{\frac{n}{d}(d-l)}\}$. So the time $u$ have to wait to start iteration $t$ is distributed as</p>
+<p>$$Z = \sum_{l=0}^{d-1} max \{X_1,...,X_{\frac{n}{d}(d-l)}\}$$</p>
+<p>$$\mathbb{E}[Z] = \frac{1}{\lambda} \sum_{j=0}^{d-1} \sum_{i=1}^{\frac{n}{d}(d-j)} \frac{1}{i}$$</p>
+<p>Clearly this situation is very rare, but it gives the most pessimistic lower bound of the time a node should wait in order to perform one iteration.</p>
+<p><strong>In the following tests the <em>almost</em>-lower bound will be used (and not the latter).</strong></p>
 
 </div>
 </div>
