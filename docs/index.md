@@ -1,6 +1,6 @@
 # LINKS to internship Jupyter Notebooks
 Below all hyperlinks to jupyter notebooks provided with a short summary of their content:
-- [2nd conf-call Nizza-Milano Jupyter notebook](./2nd-conf-call-report.html): 
+- [2nd conf-call Nizza-Milano Jupyter notebook](./2nd-conf-call-report.html) (Wednesday May 2, 2018): 
   - change log:
     - changed training set generator function x domains;
     - introduced RMSE;
@@ -22,4 +22,14 @@ Below all hyperlinks to jupyter notebooks provided with a short summary of their
     - how much nodes' degree matters in speed gain;
     - how much graph's diameter matters in speed gain;
     - __iteration speed lower bound__;
-- [3rd conf-call Nizza-Milano Jupyter notebook](./3rd-conf-call-report.html)
+- [3rd conf-call Nizza-Milano Jupyter notebook](./3rd-conf-call-report.html) (Friday May 18, 2018):
+  - formalism adopted;
+  - iterations' velocity lower bound:
+    - why actually it is not a lower bound;
+    - the greatest slowdown the most advanced node can experience due to a straggler;
+  - test 004:
+    - iterations' velocity comparison plot;
+  - single node inspection test to understand why diagonal topology performs so well;
+  - long term convergence behaviour inspection test;
+  - test pushing learning rate to the limit: finally a scenario where diagonal topology performs poorly;
+- [4th conf-call Nizza-Milano Jupyter notebook](./4th-conf-call-report.html)
