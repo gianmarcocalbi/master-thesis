@@ -232,3 +232,4 @@ TSWLatexianTemp*
 .ipynb_checkpoints/
 
 *.directory
+*.timestamp
