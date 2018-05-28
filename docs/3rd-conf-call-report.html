@@ -11817,7 +11817,7 @@ div#notebook {
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>2018-05-17 16:20:46.307573
+<pre>2018-05-28 16:04:16.866155
 </pre>
 </div>
 </div>
@@ -11889,13 +11889,13 @@ When <code>a</code> ends its calculation for iteration $t$, then it have to wait
 <td style="text-align:right">$0.5$</td>
 </tr>
 <tr>
-<td style="text-align:left">Diagonal*</td>
+<td style="text-align:left">Diagonal'</td>
 <td style="text-align:center">$0$</td>
 <td style="text-align:right">$1$</td>
 </tr>
 </tbody>
 </table>
-<p>_(*) NB: $V_l$ for diagonal graph is not reliable._</p>
+<p><em>(') NB: $V_l$ for diagonal graph is not reliable.</em></p>
 
 </div>
 </div>
@@ -11906,7 +11906,7 @@ When <code>a</code> ends its calculation for iteration $t$, then it have to wait
 <div class="text_cell_render border-box-sizing rendered_html">
 <h2 id="Lower-bound-for-$k=1$">Lower bound for $k=1$<a class="anchor-link" href="#Lower-bound-for-%24k=1%24">¶</a></h2><p>$$\frac{\lambda}{1+\sum_{l=0}^{\delta-1} \sum_{i=1}^{\delta+1-l} \frac{1}{i}}$$</p>
 <p>where $\delta = n-1$ is the graph's diameter.</p>
-<p>Let $a$ be the most advanced node in computation and suppose it being at iteration $t$. _Remember "node $v$ is at iteration $t$" means that $v$ has already performed the $t$-th update of its local model, so it owns $\mathbf{w}^{(t)}_v$_.</p>
+<p>Let $a$ be the most advanced node in computation and suppose it being at iteration $t$. <em>Remember "node $v$ is at iteration $t$" means that $v$ has already performed the $t$-th update of its local model, so it owns $\mathbf{w}^{(t)}_v$</em>.</p>
 <p>Let $d(u,v)$ be the "directed" distance from $u$ to $v$, e.g. the minimum amount of directed edges one needs to cross in order to go from $u$ to $v$ (obviously edges can be crossed just in the proper direction), then:</p>
 <ul>
 <li>nodes at distance 1 from $a$ must be at least at iteration $t-1$;</li>

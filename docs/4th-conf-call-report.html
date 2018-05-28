@@ -11817,7 +11817,7 @@ div#notebook {
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>2018-05-17 16:20:46.444935
+<pre>2018-05-28 14:46:22.329854
 </pre>
 </div>
 </div>
@@ -11830,9 +11830,192 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="Velocity-approximation">Velocity approximation<a class="anchor-link" href="#Velocity-approximation">¶</a></h1><p>As it isn't actually a lower bound. We suppose by the time node $v$ finishes computation for iteration $t$ then its dependencies in turn have already received the required informations from their dependencies so they can start calculations for iteration $t$.</p>
+<p>The time taken by node $v$ is a random variable $X$ while its $k$ (e.g. the graph's degree) dependencies are I.I.D. $X_1,...,X_k$. Let $Y=max(X_1,...,X_k)$ be the slowest dependency node to complete the task,</p>
+<p>$$Pr(Y \leq y) = \prod_{i=1}^{k} Pr(X_i \leq y) = Pr(X \leq y)^k = F_X(y)^k$$</p>
+<p>$$\mathbb{E}[Y] = \int_{0}^{\infty} (1-Pr(Y\leq y))\ dy = \int_{0}^{\infty} (1-F_X(y)^k)\ dy.$$</p>
+<p>The total time $v$ has to wait is $\mathbb{E}[Y]+\mathbb{E}[X]$, so the single iteration velocity can be expressed as</p>
+<p>$$V = \frac{1}{\mathbb{E}[Y]+\mathbb{E}[X]}.$$</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="Velocity-assuming-different-time-distributions">Velocity assuming different time distributions<a class="anchor-link" href="#Velocity-assuming-different-time-distributions">¶</a></h1><h2 id="Exponential-time">Exponential time<a class="anchor-link" href="#Exponential-time">¶</a></h2><p>The one always used up to now.</p>
+<p>$$\mathbb{E}[Y] = \int_{0}^{\infty} 1-(1-e^{-\lambda y})^k\ dy$$</p>
+<p>$$V = \frac{\lambda}{1+\sum_{i=1}^{k} \frac{1}{i}}$$</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Uniform-time">Uniform time<a class="anchor-link" href="#Uniform-time">¶</a></h2><p>$Y = max(X_1,...,X_k)$ with $X \sim \mathcal{U}(a,b)$.</p>
+<p>Uniform's CDF:
+$$
+F_X(x) =
+\begin{cases}
+    0 &amp; \text{if } x &lt; a \\
+    \frac{x-a}{b-a} &amp; \text{if } a \leq x &lt; b \\
+    1 &amp; \text{if } x \geq b \end{cases}
+$$
+<br></p>
+<p>$$
+\begin{align}
+\mathbb{E}[Y] = \int_{0}^{\infty} 1 - (F_X(y)^k) dy &amp;= \int_{0}^{a} 1\ dy + \int_{a}^{b} 1-\left(\frac{y-a}{b-a}\right)^k dy + \int_{b}^{\infty} 1-1\ dy =\\
+&amp;= a + \int_{a}^{b} 1\ dy - \frac{1}{(b-a)^k} \int_{a}^{b} (y-a)^k dy + 0 =\\
+&amp;= b - \frac{1}{(b-a)^k} \left[\frac{(y-a)^{k+1}}{k+1}\right]_{a}^{b} =\\
+&amp;= b - \frac{1}{(b-a)^k} \frac{(b-a)^{k+1}}{k+1} =\\
+&amp;= b + \frac{a-b}{k+1} = \frac{kb+b-b+a}{k+1} =\\
+&amp;= \frac{a+kb}{k+1}
+\end{align}
+$$
+<br></p>
+<p>$$
+\overline{T} = \mathbb{E}[X] + \mathbb{E}[Y] = \frac{a+b}{2} + \frac{a+kb}{k+1} = \frac{a(k+3) + b(3k+1)}{2(k+1)}
+$$
+<br></p>
+<p>$$
+\overline{V} = \frac{1}{\overline{T}} = \frac{1}{\mathbb{E}[X] + \mathbb{E}[Y]} = \frac{2(k+1)}{a(k+3) + b(3k+1)}.
+$$</p>
+<p>For $a=0$ and $b=2$
+$$
+\overline{T} = \frac{3k+1}{k+1}.
+$$</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Type-II-Pareto-time">Type II Pareto time<a class="anchor-link" href="#Type-II-Pareto-time">¶</a></h2><p>Type II Pareto's CDF:</p>
+<p>$$
+F_X(x) = 1-\left(1-\frac{x}{\lambda}\right)^{-\alpha}
+$$</p>
+<p>$Y = max(X_1,...,X_k)$ with $X \sim Pareto(\alpha)$.</p>
+<p>$$
+\begin{equation}
+\mathbb{E}[Y] = \int_{0}^{\infty} 1 - (F_X(y)^k)\ dy = \dots
+\end{equation}
+$$</p>
+<p><em>to be completed...</em></p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="Residual-time-CDF-for-non-memoryless-distributions">Residual time CDF for non-memoryless distributions<a class="anchor-link" href="#Residual-time-CDF-for-non-memoryless-distributions">¶</a></h1><p>$$F_{Xres}(x) = \frac{1}{\mathbb{E}[X]} \int_{0}^{x} (1-F_x(t))\ dt$$</p>
+<h2 id="Uniform-with-residual-time-CDF">Uniform with residual time CDF<a class="anchor-link" href="#Uniform-with-residual-time-CDF">¶</a></h2><p>Uniform's residual time CDF:
+$$
+\begin{equation}
+    F_{Xres}(x) = \frac{1}{\mathbb{E}[X]} \int_{0}^{x} (1-F_x(t))\ dt = \frac{2}{a+b} \left[ x-\int_{0}^{x} F_X(t)\ dt \right]
+\end{equation}
+$$</p>
+<p>$$
+F_{Xres}(x) = \frac{2}{a+b} 
+\begin{cases}
+    x &amp; \text{if } x \leq a \\
+    x-\int_{a}^{x}\frac{t-a}{b-a}\ dt &amp; \text{if } a &lt; x &lt; b\\
+    x-\int_{a}^{b}\frac{t-a}{b-a}\ dt -(x-b)&amp; \text{if } x \geq b
+\end{cases}
+$$</p>
+<p>$$
+\begin{cases}
+    \int_{a}^{x} \frac{t-a}{b-a}\ dt\\
+    u = \frac{t-a}{b-a}
+\end{cases}
+$$</p>
+<p>$$
+\begin{cases}
+    t = u(b-a)+a\\
+    dt = (b-a)\ du
+\end{cases}
+$$</p>
+<p>$$
+\begin{cases}
+    t = a \Rightarrow u=0\\
+    t = x \Rightarrow u = \frac{x-a}{b-a}
+\end{cases}
+$$</p>
+<p>$$
+\int_{a}^{x} \frac{t-a}{b-a}\ dt = \int_{0}^{\frac{x-a}{b-a}} u(b-a)\ du = (b-a) \frac{u^2}{2}\Biggr|_0^{\frac{x-a}{b-a}} = \frac{(x-a)^2}{2(b-a)}
+$$</p>
+<p>So</p>
+<p>$$
+F_{Xres}(x) = 
+\begin{cases}
+    \frac{2x}{a+b} &amp; \text{if } x \leq a \\
+    \frac{x^2-2bx+a^2}{a^2-b^2} &amp; \text{if } a &lt; x &lt; b\\
+    1 &amp; \text{if } x \geq b
+\end{cases}
+$$</p>
+<p>$Yres = max(Xres_1,...,Xres_k)$</p>
+<p>$$
+\begin{align}
+\mathbb{E}[Yres] &amp; = \int_{0}^{+\infty}1-F_{Xres}(y)^k\ dy =\\
+&amp; = \int_{0}^{a} 1-\left(\frac{2y}{a+b}\right)^k\ dy + \int_{a}^{b} 1- \left(\frac{y^2-2by+a^2}{a^2-b^2}\right)^k\ dy + \int_{b}^{+\infty}1-1\ dy =\\
+&amp; = a - \frac{2^k}{(a+b)^k} \int_{0}^{a} y^k\ dy +b-a - \frac{1}{(a^2-b^2)^k} \int_{a}^{b} (y^2-2by+a^2)^k\ dy=\\
+&amp; = b - \frac{2^k a^{k+1}}{(a+b)^k (k+1)} - \frac{1}{(a^2-b^2)^k} \int_{a}^{b} (y^2-2by+a^2)^k\ dy.
+\end{align}
+$$</p>
+<p>For integral $\int_{a}^{b} (y^2-2by+a^2)^k\ dy$ (with generic $k\geq 1$) there are no primitives to calculate its closed form while it is always possible for fixed $k$.</p>
+<p>For $a=0,\ b=2,\ k=1$ (cycle):
+$$\mathbb{E}[Yres] = b - \frac{2^k a^{k+1}}{(a+b)^k (k+1)} - \frac{1}{(a^2-b^2)^k} \int_{a}^{b} (y^2-2by+a^2)^k\ dy = 2+\frac{1}{4}\int_{0}^{2} t^2 -4t\ dt = 2 + \frac{1}{4} \left(-\frac{16}{3}\right) = \frac{2}{3}$$</p>
+<p>and velocity</p>
+<p>$$\overline{V} = \frac{1}{\mathbb{E}[Yres] + \mathbb{E}[X]} = \frac{1}{\frac{2}{3} + 1} = \frac{3}{5}$$</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Type-II-Pareto-with-residual-time">Type II Pareto with residual time<a class="anchor-link" href="#Type-II-Pareto-with-residual-time">¶</a></h2><p>Type II Pareto CDF with parameters $\alpha$ and $\sigma$:
+$$F_X(x) = 1-\left(1+\frac{x}{\sigma}\right)^{-\alpha}.$$</p>
+<p>$$
+\begin{align}
+F_{Xres}(x) &amp;= \frac{1}{\mathbb{E}[X]} \int_{0}^{x} \left(1+\frac{u}{\sigma}\right)^{-\alpha}\ du = \qquad \left(\text{with } 1+\frac{u}{\sigma}=\nu\right) \\
+&amp;= \frac{1}{\mathbb{E}[X]} \int_{1}^{1+\frac{x}{\sigma}} \sigma \nu^{-\alpha}\ d\nu \\
+&amp;= \frac{1}{\mathbb{E}[X]} \sigma \frac{\nu^{-\alpha+1}}{\alpha-1}\Biggr|_{1+\frac{x}{\sigma}}^{1} =\\
+&amp;= \frac{\sigma}{(\alpha-1)\mathbb{E}[X]}\left(1-\left(1+\frac{x}{\sigma}\right)^{-\alpha+1}\right)=\\
+&amp;= 1-\left(1+\frac{x}{\sigma}\right)^{-\alpha+1}.
+\end{align}
+$$</p>
+<p>Type II Pareto Residual lifetime CDF is a classical type II Pareto with parameters $\alpha-1$ and $\sigma$.</p>
+<p>$Yres = max(Xres_1,...,Xres_k)$.</p>
+<p>$$
+\begin{align}
+\mathbb{E}[Yres] &amp;= \int_{0}^{\infty} 1-\left(1-\left(1+\frac{y}{\sigma}\right)^{-\alpha+1}\right)^k\ dy =\\
+&amp;= \int_{0}^{\infty} \sum_{i=1}^{k} \left[\binom{k}{i} (-1)^i \left(1+\frac{y}{\sigma}\right)^{(-\alpha+1)i}\right]\ dy =\\
+&amp;= \sum_{i=1}^{k} \left[\binom{k}{i} (-1)^i \int_{0}^{\infty} \underbrace{\left(1+\frac{y}{\sigma}\right)^{(-\alpha+1)i}}_\text{Pareto II for $\sigma$ and $(\alpha-1)i$}\ dy\right] =\\
+&amp;= \sum_{i=1}^{k} \left[\binom{k}{i} (-1)^i \frac{\sigma}{(\alpha-1)i-1}\right].
+\end{align}
+$$</p>
+<p>$$\overline{V}=\frac{1}{\mathbb{E}[Yres]+\mathbb{E}[X]} = \frac{1}{\sum_{i=1}^{k} \left[\binom{k}{i} (-1)^i \frac{\sigma}{(\alpha-1)i-1}\right] + \frac{\sigma}{\alpha-1}} = \frac{1}{\sum_{i=1}^{k} \left[\binom{k}{i} (-1)^i \frac{\sigma}{(\alpha-1)i-1}\right] + \frac{\sigma}{\alpha-1}}$$</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<hr>
+<h1 id="Everything-below-this-line-is-just-a-raw-draft"><em>Everything below this line is just a raw draft</em><a class="anchor-link" href="#Everything-below-this-line-is-just-a-raw-draft">¶</a></h1><hr>
 <h2 id="A-hypothetical-real-(but-very-pessimistic)-lower-bound-$\forall-k$">A hypothetical real (but very pessimistic) lower bound $\forall k$<a class="anchor-link" href="#A-hypothetical-real-(but-very-pessimistic)-lower-bound-%24%5Cforall-k%24">¶</a></h2><p>$$V_l = \frac{\lambda}{1 + \sum_{j=0}^{\lambda-1} \sum_{i=1}^{\frac{n}{\lambda}(\lambda-j)} \frac{1}{i}}$$</p>
 <p>where $d$ is the graph's diameter.</p>
-<p>Let $u$ be the most advanced node in computation and suppose it being at iteration $t$. _Remember "node $u$ is at iteration $t$" means that $u$ has already performed the $t$-th update of its local model, so it owns $\mathbf{w}^{(t)}_u$_.</p>
+<p>Let $u$ be the most advanced node in computation and suppose it being at iteration $t$. <em>Remember "node $u$ is at iteration $t$" means that $u$ has already performed the $t$-th update of its local model, so it owns $\mathbf{w}^{(t)}_u$</em>.</p>
 <p>Let $d(u,v)$ be the "directed" distance from $u$ to $v$, e.g. the minimum amount of directed edges one needs to cross in order to go from $u$ to $v$ (obviously edges can be crossed just in the proper direction), then:</p>
 <ul>
 <li>nodes at distance 1 from $u$ must be at least at iteration $t-1$;</li>
@@ -11851,6 +12034,42 @@ div#notebook {
 <p>Clearly this situation is very rare, but it gives the most pessimistic lower bound of the time a node should wait in order to perform one iteration.</p>
 <p><strong>In the following tests the <em>almost</em>-lower bound will be used (and not the latter).</strong></p>
 
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="WTHeck-is-happening">WTHeck is happening<a class="anchor-link" href="#WTHeck-is-happening">¶</a></h1><h2 id="What-needed-a-change">What needed a change<a class="anchor-link" href="#What-needed-a-change">¶</a></h2><p>Let's consider what is happening inside a node $v$:</p>
+<ul>
+<li>iterations counter starts from 0;</li>
+<li>the weight vector is initialized to a random value (why and the significance of this random value will be discussed later);</li>
+<li><h2 id="stepwise-update-is-computed:">stepwise update is computed:<a class="anchor-link" href="#stepwise-update-is-computed:">¶</a></h2></li>
+<li><p>the iteration counter is increased after each update of the local model. For instance, at iteration 0, the first model update is applied, then the iteration counter is set equal to 1. I used to consider iterations counter increase as the last instruction which concludes the update.</p>
+</li>
+</ul>
+<p>The problem arises because metrics calculation is made before the iterations counter increase, hence 
+Iteration 0 use to be considered the first update of weight vector applied by each node. The binding between iterations and weights was: iteration $i$ is paired with $w^(i)$. Actually if one thinks at $w^{(0)}$ then it should be the starting point, so $w^{(1)}$ should be the first weight update instead. In my code it wasn't so.</p>
+<p>There was <code>W_log</code> which stored the history of $w$(s). The first element of <code>W_log</code> (e.g. <code>W_log[0]</code>) is the starting $w$ which is not the first weight update $w^(0)$</p>
+<h2 id="Why-these-outcomes?">Why these outcomes?<a class="anchor-link" href="#Why-these-outcomes?">¶</a></h2>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="1e-6-alpha-10k-samples-10k-time-GD-test">1e-6 alpha 10k samples 10k time GD test<a class="anchor-link" href="#1e-6-alpha-10k-samples-10k-time-GD-test">¶</a></h1><p>Parameters:</p>
+<ul>
+<li>100 nodes;</li>
+<li>10k samples;</li>
+<li>100 features/predictors;</li>
+<li>plotted graphs: diagonal, cycle, clique;</li>
+<li>10k time limit;</li>
+<li><strong>1e-6 alpha</strong>.</li>
+</ul>
+<h2 id="X-starts-in-[0,1]">X starts in [0,1]<a class="anchor-link" href="#X-starts-in-%5B0,1%5D">¶</a></h2><h2 id="X-starts-in-[0,2]">X starts in [0,2]<a class="anchor-link" href="#X-starts-in-%5B0,2%5D">¶</a></h2><h2 id="X-starts-in-0">X starts in 0<a class="anchor-link" href="#X-starts-in-0">¶</a></h2>
 </div>
 </div>
 </div>
