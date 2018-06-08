@@ -9,7 +9,7 @@
 	"priority": 100,
 	"inRepository": true,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-04-24 22:55:00"
+	"lastUpdated": "2018-05-21 10:50:00"
 }
 
 // attr()/text() v2
@@ -65,7 +65,7 @@ function getPDFLink(doc, onDone) {
 	
 	// Some pages still have the PDF link available
 	var pdfURL = attr(doc, '#pdfLink', 'href');
-	if (!pdfURL) pdfURL = attr(doc, '[name="citation_pdf_url', 'content');
+	if (!pdfURL) pdfURL = attr(doc, '[name="citation_pdf_url"]', 'content');
 	if (pdfURL && pdfURL != '#') {
 		parseIntermediatePDFPage(pdfURL, onDone);
 		return;

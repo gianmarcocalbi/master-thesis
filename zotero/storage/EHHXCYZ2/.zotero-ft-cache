@@ -1,0 +1,5802 @@
+arXiv:1005.2012v3 [math.OC] 10 Apr 2011
+
+Dual Averaging for Distributed Optimization: Convergence Analysis and Network Scaling
+
+John C. Duchi1
+
+Alekh Agarwal1
+
+Martin J. Wainwright1,2
+
+jduchi@cs.berkeley.edu alekh@cs.berkeley.edu wainwrig@eecs.berkeley.edu
+
+Department of Electrical Engineering and Computer Sciences1 UC Berkeley, Berkeley, CA 94720
+
+Department of Statistics2 UC Berkeley, Berkeley, CA 94720
+
+April 12, 2011
+Abstract
+The goal of decentralized optimization over a network is to optimize a global objective formed by a sum of local (possibly nonsmooth) convex functions using only local computation and communication. It arises in various application domains, including distributed tracking and localization, multi-agent co-ordination, estimation in sensor networks, and large-scale optimization in machine learning. We develop and analyze distributed algorithms based on dual averaging of subgradients, and we provide sharp bounds on their convergence rates as a function of the network size and topology. Our method of analysis allows for a clear separation between the convergence of the optimization algorithm itself and the eﬀects of communication constraints arising from the network structure. In particular, we show that the number of iterations required by our algorithm scales inversely in the spectral gap of the network. The sharpness of this prediction is conﬁrmed both by theoretical lower bounds and simulations for various networks. Our approach includes both the cases of deterministic optimization and communication, as well as problems with stochastic optimization and/or communication.
+
+1 Introduction
+The focus of this paper is the development and analysis of distributed algorithms for solving convex optimization problems that are deﬁned over networks. Such network-structured optimization problems arise in a variety of application domains within the information sciences and engineering. For instance, problems such as multi-agent coordination, distributed tracking and localization, estimation problems in sensor networks and packet routing are all naturally cast as distributed convex minimization [BT89, LWHS02, LOT03, RN04, XBK07]. Common to these problems is the necessity for completely decentralized computation that is locally light—so as to avoid overburdening small sensors or ﬂooding busy networks—and robust to periodic link or node failures. As a second example, data sets that are too large to be processed quickly by any single processor present related challenges. A canonical example that arises in statistical machine learning is the problem of minimizing a loss function averaged over a large dataset (e.g., optimization in support vector machines [CV95]). With terabytes of data, it is desirable to assign smaller subsets of the data to diﬀerent processors, and the processors must communicate to ﬁnd parameters that minimize the loss over the entire dataset. However, the communication should be eﬃcient enough that network latencies do not oﬀset computational gains.
+Distributed computation has a long history in optimization. Primal and dual decomposition methods that lend themselves naturally to a distributed paradigm have been known for at least ﬁfty years, and their behavior is well understood (e.g., [DW60, Ber99]). The 1980s saw signiﬁcant interest in distributed detection, consensus, and minimization. The seminal work of Tsitsiklis
+1
+
+and colleagues [Tsi84, TBA86, BT89] analyzed algorithms for minimization of a smooth function
+
+f known to several agents while distributing processing of components of the parameter vector
+
+x ∈ Rn. An important special case of network optimization—with much faster convergence rates
+
+than those known for general distributed optimization—is consensus averaging, where each pro-
+
+cessor in the network must agree on a single (vector-valued) variable. This is recovered from our
+
+objective (1) by setting fi(x) =
+
+x − θi
+
+2 2
+
+.
+
+A number of researchers have obtained sharp conver-
+
+gence results for distributed consensus algorithms by studying network topology and using spectral
+
+properties of random walks or path averaging arguments on the underlying graph structure (e.g.,
+
+see [BGPS06, BDTV10, DSW08] and references therein). Allowing stochastic gradients also lets us
+
+tackle distributed averaging with noise [XBK07]. Mosk-Aoyama et al. [MARS10] consider a prob-
+
+lem related to our setup, minimizing
+
+n i=1
+
+fi(xi)
+
+for
+
+xi
+
+∈
+
+R
+
+subject
+
+to
+
+linear
+
+equality
+
+constraints,
+
+and they obtain rates of convergence dependent on network-conductance using an algorithm sim-
+
+ilar to dual decomposition. More recently, a few researchers have shifted focus to problems in
+
+which each processor locally has its own convex (potentially non-diﬀerentiable) objective func-
+
+tion [NO09, LO09]. Whereas these initial papers treated the case of unconstrained optimization,
+
+more recent work by Ram et al. [RNV10] analyzes a projected subgradient algorithm for distributed
+
+minimization of non-smooth functions with constraints.
+
+Our paper makes two main contributions. The ﬁrst contribution is to provide a new simple subgradient algorithm for distributed constrained optimization of a convex function; we refer to it as a dual averaging subgradient method, since it is based on maintaining and forming weighted averages of subgradients throughout the network. This approach is essentially diﬀerent from previously developed methods [NO09, LO09, RNV10], and these diﬀerences facilitate our analysis of network scaling issues, meaning how convergence rates depend on network size and topology. Indeed, the second main contribution of this paper is a careful analysis that demonstrates a close link between convergence of the algorithm and the underlying spectral properties of the network. Our analysis splits the convergence rate of the algorithm into two terms: an optimization term and a network deviation term. We obtain the optimization penalty using techniques based on the optimization literature, speciﬁcally building on results due to Nesterov [Nes09]. This splitting approach can also be adapted to naturally handle issues such as constrained optimization, stochastic communication, and stochastic optimization due to elegant properties of the dual averaging algorithm. On the other hand, the network scaling terms are obtained using techniques from analysis of Markov chains coupled with the distributed communication protocol. We show that the network deviation terms we derive are sharp for our algorithm; in the special case of the consensus problem, these terms are known to be near-optimal [BGPS06].
+
+By comparison to previous work, our convergence results and proofs are diﬀerent, and our characterization of the network scaling terms are often much stronger. In particular, the convergence rates given by the papers [NO09, LO09] grow exponentially in the number of nodes n in the network. Nedi´c et al. [NOOT09] and Ram et al. [RNV10] provide a much tighter analysis that yields convergence rates that scale polynomially in the network size, but are independent of the network topology (apart from requiring strong connectedness and degree independent of n). Speciﬁcally, Corollary 5.5 in the paper [RNV10] guarantees that their projected subgradient algorithm—under the assumptions that the number of time steps is known a priori and the stepsize is chosen optimally—obtains an ǫ-optimal solution to the optimization problem in O(n3/ǫ2) time. Since this bound is essentially independent of network topology, it does not capture the intuition that distributed algorithms should converge much faster on “well-connected” networks—expander
+
+2
+
+graphs being a prime example—than on poorly connected networks (e.g., chains, trees or single cycles). Johansson et al. [JRJ09] analyze a low communication peer-to-peer protocol that attains rates dependent on network structure. However, in their algorithm only one node has a current parameter value, while all nodes in our algorithm maintain good estimates of the optimum at all time. This is important in online, streaming, and control problems where nodes are expected to act or answer queries in real time. In additional comparison to previous work, our analysis gives network scaling terms that are often substantially sharper. Our development yields an algorithm with convergence rate that scales inversely in the spectral gap of the network. By exploiting known results on spectral gaps for graphs with n nodes, we show that (disregarding logarithmic factors) our algorithm obtains an ǫ-optimal solution in O(n2/ǫ2) iterations for a single cycle or path, O(n/ǫ2) iterations for a two-dimensional grid, and O(1/ǫ2) iterations for a bounded degree expander graph. Moreover, simulation results show an excellent agreement with these theoretical predictions.
+Our analysis covers several settings for distributed minimization. We begin by studying ﬁxed communication protocols, which are of interest in a variety of areas such as cluster computing or sensor networks with a ﬁxed hardware-dependent protocol. We also investigate randomized communication protocols as well as randomized network failures, which are often essential to handle gracefully in wireless sensor networks and large clusters with potential node failures. Randomized communication also provides an interesting tradeoﬀ between communication savings and convergence rates. In this setting, we obtain much sharper results than previous work by studying the spectral properties of the expected transition matrix of a random walk on the underlying graph. We also present an analysis of our algorithm with stochastic gradient information, which is not diﬃcult when combined with our initial theorems. We describe an extension for (structured) regularized objectives that often arise in machine learning problems in Appendix D.
+The remainder of this paper is organized as follows. Section 2 is devoted to a formal statement of the problem and description of the dual averaging algorithm, whereas Section 3 states the main results and consequences of our paper. Having stated our main results, in Section 4 we give a more in-depth comparison of our work with other recent work. In Section 5, we state and prove basic convergence results on the dual averaging algorithm, which we then exploit in Section 6 to derive concrete results that depend on the spectral gap of the network. Sections 7 and 8 treat extensions with noise, in particular algorithms with noisy communication and stochastic gradient methods respectively. In Section 9, we present the results of simulations that conﬁrm the sharpness of our analysis.
+Notation: We collect some notation used throughout the paper. We use 11 to denote the allones vector. We also use standard asymptotic notation for sequences. If an and bn are positive sequences, then an = O(bn) means that lim supn an/bn < ∞, whereas an = Ω(bn) means that lim infn an/bn > 0. On the other hand, an = o(bn) means that limn an/bn = 0 and an = ω(bn) means that limn an/bn = ∞. Finally, we write an = Θ(bn) if an = O(bn) and an = Ω(bn).
+2 Problem set-up and algorithm
+In this section, we provide a formal statement of the distributed minimization problem, and a description of the distributed dual averaging algorithm.
+3
+
+2.1 Distributed minimization
+
+We consider an optimization problem based on functions that are distributed over a network. More
+
+speciﬁcally, let G = (V, E) be an undirected graph over the vertex set V = {1, 2, . . . , n} with edge
+
+set E ⊂ V × V . Associated with each i ∈ V is convex function fi : Rd → R, and our overarching
+
+goal is to minimize the sum
+
+f (x)
+
+=
+
+1 n
+
+n i=1
+
+fi(x),
+
+subject to the constraint that x ∈ Rd belongs to some closed convex set X —that is, solve the
+
+problem
+
+min
+x
+
+1 n
+
+n
+
+fi(x)
+
+subject to x ∈ X .
+
+(1)
+
+i=1
+
+Each function fi is convex and hence sub-diﬀerentiable, but need not be smooth. We assume without loss of generality that 0 ∈ X , since we can simply translate X . Each node i ∈ V is associated with a separate agent, and each agent i maintains its own parameter vector xi ∈ Rd. The graph G imposes communication constraints on the agents: in particular, agent i has local
+
+access to only the objective function fi and can communicate directly only with its immediate neighbors j ∈ N (i) : = {j ∈ V | (i, j) ∈ E}.
+
+Problems of this nature arise in a variety of application domains, and as motivation for the
+
+analysis to follow, let us consider a few here. A ﬁrst example is a sensor network, in which each
+
+agent represents a sensor mote, equipped with a radio transmitter for communication, some basic
+
+sensing devices, and some local memory and computational power. In environmental applications
+
+of sensor networks, each mote i might take a measurement yi of the temperature, and the global
+
+objective could be to compute the median of the measurements {y1, y2, . . . , yn}. This median
+
+computation
+
+problem
+
+can
+
+be
+
+formulated
+
+as
+
+minimizing
+
+the
+
+scalar
+
+objective
+
+function
+
+1 n
+
+n i=1
+
+fi(x),
+
+where fi(x) = |x − yi|. Similar formulations apply to the problem of computing other statistics
+
+such as means, variances, quantiles and other M -estimators.
+
+A second motivating example is the machine learning problem ﬁrst described in Section 1.
+
+In this case, the set X is the parameter space of the statistician or learner. Each function fi is the empirical loss over the subset of data assigned to the ith processor, and assuming that each
+
+subset is of equal size (or that the fi are normalized suitably), the average f is the empirical loss over the entire dataset. Here we use cluster computing as our computational model, where each
+
+processor is a node in the cluster, and the graph G contains edges between those processors that
+
+are directly connected with small network latencies. A special case of our optimization problem
+
+within this computational model is the distributed perceptron, recently considered by McDonald
+
+et al. [MHM10].
+
+2.2 Standard dual averaging
+Our algorithm is based on a projected dual averaging algorithm [Nes09], designed for minimization of a (potentially nonsmooth) convex function f subject to the constraint x ∈ X . We begin by describing the standard version of this algorithm, and then discuss the extensions for the distributed setting of interest in this paper.
+4
+
+The dual averaging scheme is based on a proximal function ψ : Rd → R that is assumed to be 1-strongly convex with respect to some norm · —more precisely, the proximal function satisﬁes
+
+ψ(y) ≥ ψ(x) +
+
+∇ψ(x), y − x
+
++
+
+1 2
+
+x−y 2
+
+for all x, y ∈ X .
+
+In addition, we assume that ψ(x) ≥ 0 for all x ∈ X and that ψ(0) = 0; these are standard assumptions that can be made without loss of generality. Examples of such proximal function and norm pairs include:
+
+•
+
+the quadratic ψ(x) =
+
+1 2
+
+x
+
+22, which is the canonical proximal function.
+
+Clearly
+
+1 2
+
+0
+
+2 2
+
+=
+
+0,
+
+and
+
+1 2
+
+x
+
+2 2
+
+is
+
+strongly
+
+convex
+
+with
+
+respect
+
+to
+
+the
+
+ℓ2-norm
+
+for
+
+x
+
+∈
+
+Rd.
+
+• the entropic function ψ(x) =
+
+d i=1
+
+xi
+
+log
+
+xi
+
+−
+
+xi,
+
+which
+
+is
+
+strongly
+
+convex
+
+with
+
+respect
+
+to
+
+the
+
+ℓ1-norm for x in the probability simplex, {x | x 0, x, 11 = 1}.
+
+We assume that each function fi is L-Lipschitz with respect to the same norm · —that is,
+
+|fi(x) − fi(y)| ≤ L x − y
+
+for x, y ∈ X .
+
+(2)
+
+There are many cost functions fi that satisfy this type of Lipschitz condition. For instance, it holds for any convex function on a compact domain X , or for any polyhedral function on an arbitrary domain [HUL96a]. Note that the Lipschitz condition (2) implies that for any x ∈ X and any subgradient gi ∈ ∂fi(x), we have
+gi ∗ ≤ L,
+where · ∗ denotes the dual norm to · , deﬁned by v ∗ : = sup u =1 v, u . The dual averaging algorithm generates a sequence of iterates {x(t), z(t)}∞ t=0 contained within
+X × Rd according to the following steps. At time step t of the algorithm, it receives a subgradient g(t) ∈ ∂f (x(t)), and then performs the updates
+
+z(t + 1) = z(t) + g(t) and
+
+x(t + 1) = ΠψX (z(t + 1), α(t)),
+
+(3)
+
+where {α(t)}∞ t=0 is a non-increasing sequence of positive stepsizes and
+
+ΠψX (z, α) : = argmin
+x∈X
+
+z, x
+
++
+
+1 α
+
+ψ(x)
+
+(4)
+
+is a type of projection. The intuition underlying this algorithm is as follows: given the current iterate (x(t), z(t)), the next iterate x(t + 1) to chosen to minimize an averaged ﬁrst-order approximation
+to the function f , while the proximal function ψ and stepsize α(t) > 0 enforce that the iterates {x(t)}∞ t=0 do not oscillate wildly. The algorithm is similar to the follow the perturbed leader and lazy projection algorithms developed in the context of online optimization [KV05], though in this
+form the algorithm seems to be originally due to Nesterov [Nes09]. In Section 5, we show that a
+simple analysis of the convergence of the above procedure allows us to relate it to the distributed
+algorithm we describe.
+
+5
+
+2.3 Distributed dual averaging
+
+We now consider an appropriate and novel extension of dual averaging to the distributed setting. At each iteration t = 1, 2, 3, . . ., the algorithm maintains n pairs of vectors (xi(t), zi(t)) ∈ X × Rd, with the ith pair associated with node i ∈ V . At iteration t, each node i ∈ V computes an element
+gi(t) ∈ ∂fi(xi(t)) in the subdiﬀerential of the local function fi and receives information about the parameters {zj (t), j ∈ N (i)} associated with nodes j in its neighborhood N (i). Its update of the current estimated solution xi(t) is based on a convex combination of these parameters. To model this weighting process, let P ∈ Rn×n be a matrix of non-negative weights that respects the
+structure of the graph G, meaning that for i = j, Pij > 0 only if (i, j) ∈ E. We assume that P is a doubly stochastic matrix, so that
+
+n
+
+Pij =
+
+Pij = 1
+
+j=1
+
+j∈N (i)
+
+for all i ∈ V,
+
+n
+
+Pij =
+
+Pij = 1
+
+i=1
+
+i∈N (j)
+
+for all j ∈ V.
+
+Using this notation, given the non-increasing sequence {α(t)}∞ t=0 of positive stepsizes, each node i ∈ V = {1, 2, . . . , n} performs the updates
+
+zi(t + 1) =
+
+pijzj(t) + gi(t), and
+
+(5a)
+
+j∈N (i)
+
+xi(t + 1) = ΠψX (zi(t + 1), α(t)),
+
+(5b)
+
+where the projection ΠψX was deﬁned previously (4). In words, node i computes the new dual parameter zi(t + 1) from a weighted average of its own subgradient gi(t) and the parameters {zj(t), j ∈ N (i)} in its own neighborhood N (i), and then computes the next local iterate xi(t + 1) by a projection deﬁned by the proximal function ψ and stepsize α(t) > 0.
+
+In the sequel, we show convergence of the local sequence {xi(t)}∞ t=1 to the optimum of (1) via the running local average
+
+xi(T ) =
+
+1 T
+
+T
+xi(t).
+t=1
+
+(6)
+
+Note that this quantity is locally deﬁned at node i and so can be computed in a distributed manner. From the deﬁnition of updates, it is clear that each element of the sequence {zi(t)}∞ t=0 is essentially a weighted average of the gradients seen so far, which is a natural extension of dual averaging. At the same time, as we shall see, the averaging of the dual parameters in the sequence {zi(t)}∞ t=0 allows us to neatly sidestep the complexity arising from non-linearity of projections. We will thus
+be able to generalize the algorithm from equations (5a) and (5b) to the case where P is random
+and varies with time as well as when the vectors gi(t) are noisy versions of subgradients, satisfying only E[gi(t)] ∈ ∂fi(xi(t)).
+
+3 Main results and consequences
+We will now state the main results of this paper and illustrate some of their consequences. We give the proofs and a deeper investigation of related corollaries at length in the sections that follow.
+6
+
+3.1 Convergence of distributed dual averaging
+
+We start with a result on the convergence of the distributed dual averaging algorithm that provides a
+
+decomposition of the error into an optimization term and the cost associated with network commu-
+
+nication.
+
+In order to state this theorem, we deﬁne the averaged dual variable z¯(t)
+
+:=
+
+1 n
+
+n i=1
+
+zi(t),
+
+and we recall the deﬁnition (6) of the local average xi(T ).
+
+Theorem 1 (Basic convergence result). Let the sequences {xi(t)}∞ t=0 and {zi(t)}∞ t=0 be generated by the updates (5a) and (5b) with step size sequence {α(t)}∞ t=0. Then for any x∗ ∈ X and for each node i ∈ V , we have
+
+f (xi(T ))
+
+−
+
+f (x∗)
+
+≤
+
+T
+
+1 α(T
+
+)
+
+ψ(x∗)
+
++
+
+L2 2T
+
+T
+
+α(t − 1)
+
+t=1
+
++ 2L T nT
+
+n
+
+α(t)
+
+z¯(t) − zj(t)
+
+∗+
+
+L T
+
+T
+
+α(t)
+
+z¯(t) − zi(t) ∗ .
+
+(7)
+
+t=1 j=1
+
+t=1
+
+Theorem 1 guarantees that after T steps of the algorithm, every node i ∈ V has access to a
+
+locally deﬁned quantity xi(T ) such that the diﬀerence f (xi(T )) − f (x∗) is upper bounded by a
+
+sum of four terms. The ﬁrst two terms in the upper bound (7) are optimization error terms that
+
+are common to subgradient algorithms. The third and fourth terms are penalties incurred due to
+
+having diﬀerent estimates at diﬀerent nodes in the network, and they measure the deviation of each
+
+node’s estimate of the average gradient from the true average gradient.1 Thus, roughly, Theorem 1
+
+ensures that as long the bo√und on the deviation z¯(t) − zi(t) ∗ is tight enough, for appropriately chosen α(t) (say α(t) ≈ 1/ t), the error of xi(T ) is small uniformly across all nodes i ∈ V , and
+
+asymptotically approaches 0. See Theorem 2 in the next section for a precise statement of rates.
+
+It is worthwhile comparing the optimization error term from the bound (7) to known results.
+
+Subgradient
+
+descent
+
+on
+
+the
+
+average
+
+function
+
+f
+
+=
+
+1 n
+
+n i=1
+
+fi
+
+has
+
+identical
+
+convergence
+
+rate,
+
+as
+
+does
+
+the randomized version of incremental subgradient descent [NB01]. However, the distributed na-
+
+ture of the algorithm gives a computational advantage over full gradient descent—the gradient
+
+computation requires O(1) computation per computer rather than O(n) on a single computer. To
+
+highlight the beneﬁts compared to incremental subgradient descent, consider the common problem
+
+in machine learning and statistics of minimizing a loss on a large dataset. A randomized incre-
+
+mental gradient descent method must access random subsets of data at every iteration, leading to
+
+randomized disk seeks with high latency, which the distributed algorithm avoids. In addition, we
+
+expect (and empirically see that this is indeed the case) our method to produce more stable iterates,
+
+as we observe the gradients of all n functions at every round, albeit with a network communication
+
+lag.
+
+3.2 Convergence rates and network topology
+We now turn to investigation of the eﬀects of network topology on convergence rates. In this section, we assume that the network topology is static and that communication occurs via a ﬁxed doubly stochastic weight matrix P at every round.2 Since P is doubly stochastic, it has largest singular
+1The fact that the term z¯(t) − zi(t) ∗ appears an extra time is no signiﬁcant diﬃculty, as we will bound the diﬀerence z¯(t) − zi(t) uniformly for all i when giving concrete convergence results.
+2In later sections, we weaken these conditions.
+
+7
+
+value σ1(P ) = 1. As summarized in the following result, the convergence rate of the distributed projection algorithm is controlled by the spectral gap γ(P ) : = 1 − σ2(P ) of the matrix P .
+
+Theorem 2 (Rates based on spectral gap). Under the condition√s and notation of Theorem 1,
+
+suppose moreover that ψ(x∗) ≤ R2. With step size choice α(t) = R
+
+1−√σ2 4L t
+
+(P
+
+)
+
+,
+
+we
+
+have
+
+f
+
+(xi(T
+
+))
+
+−
+
+f
+
+(x∗)
+
+≤
+
+8
+
+√RL T
+
+log(T √n) 1 − σ2(P )
+
+for all i ∈ V .
+
+To the best of our knowledge, this theorem is the ﬁrst to establish a tight connection between the convergence rate of distributed subgradient methods to the spectral properties of the underlying network. In particular, the inverse dependence on the spectral gap 1 − σ2(P ) is quite natural, since it is well-known to determine the rates of mixing in random walks on graphs [LPW08], and the propagation of information in our algorithm is integrally tied to the random walk on the underlying graph with transition probabilities speciﬁed by P .
+
+Using Theorem 2, one can derive explicit convergence rates for several classes of interesting networks, and Figure 1 illustrates four diﬀerent graph topologies that are of interest. As a ﬁrst example, the k-connected cycle in panel (a) is formed by placing n nodes on a circle and connecting each node to its k neighbors on the right and left. For small k, the cycle graph is rather poorly connected, and our analysis will show that this leads to slower convergence rates than other graphs with better connectivity. The grid graph in two dimensions is obtained by connecting nodes to their k nearest neighbors in axis-aligned directions. For instance, panel (b) shows an example of a degree 4 grid graph in two-dimensions. Both the cycle and grid topologies are possible models for clustered computing as well as sensor networks.
+In panel (c), we show a random geometric graph, constructed by placing nodes uniformly at random in [0, 1]2 and connecting any two nodes separated by a distance less than some radius r > 0. These graphs are used to model the connectivity patterns of devices, such as wireless sensor motes, that can communicate with all nodes in some ﬁxed radius ball, and have been studied extensively (e.g., [GK00, Pen03]). There are natural generalizations to dimensions d > 2 as well as to cases in which the spatial positions are drawn from a non-uniform distribution.
+Finally, panel (d) shows an instance of a bounded degree expander, which belongs to a special class of sparse graphs that have very good mixing properties [Chu98]. Expanders are an attractive option for the network topology in distributed computation since they are known to have large spectral gaps. For many random graph models, a typical sample is an expander with high probability; for instance, a randomly chosen bipartite graph satisﬁes this property [Alo86], as do random degree regular graphs [FKS89]. In addition, there are several deterministic constructions of expanders that are degree regular (see Section 6.3 of Chung [Chu98] for further details). The deterministic constructions are of interest because they can be used to design a network, while the random constructions are of interest since they are often much simpler.
+
+In order to state explicit convergence rates, we need to specify a particular choice of the matrix
+
+P that respects the graph structure. Although many such choices are possible, here we focus on
+
+the graph Laplacian [Chu98]. First, we let A ∈ Rn×n be the symmetric adjacency matrix of the
+
+undirected graph G, satisfying Aij = 1 when (i, j) ∈ E and Aij = 0 otherwise. For each node
+
+i ∈ V , we let δi = |N (i)| =
+
+n j=1
+
+Aij
+
+denote
+
+the
+
+degree
+
+of
+
+node
+
+i,
+
+and
+
+we
+
+deﬁne
+
+the
+
+diagonal
+
+8
+
+(a)
+
+(b)
+
+(c)
+
+(d)
+
+Figure 1. Illustration of some graph classes of interest in distributed protocols. (a) A 3-connected cycle. (b) Two-dimensional grid with 4-connectivity, and non-toroidal boundary conditions. (c) A random geometric graph. (d) A random 3-regular expander graph.
+
+matrix D = diag{δ1, . . . , δn}. We assume that the graph is connected, so that δi ≥ 1 for all i, and hence D is invertible. With this notation, the (normalized) graph Laplacian is given by
+L(G) = I − D−1/2AD−1/2.
+
+Note that the graph Laplacian L = L(G) is always symmetric, positive semideﬁnite, and satisﬁes
+
+LD1/211 = 0. Therefore, when the graph is degree-regular (δi = δ for all i ∈ V ), the standard
+
+random walk with self loops on G given by the matrix P
+
+:
+
+=
+
+I
+
+−
+
+δ δ+1
+
+L
+
+is
+
+doubly
+
+stochastic
+
+and
+
+is
+
+valid for our theory. For non-degree regular graphs, we need to make a minor modiﬁcation in order
+
+to obtain a doubly stochastic matrix.
+
+Letting δmax = maxi∈V δi denote the maximum degree, we deﬁne the modiﬁed matrix
+
+Pn(G)
+
+:
+
+=
+
+I
+
+−
+
+1 δmax +
+
+1
+
+D−A
+
+=
+
+I
+
+−
+
+1 δmax +
+
+1 D1/2LD1/2.
+
+(8)
+
+This matrix is symmetric by construction, and moreover,
+
+nj=1(Dij − Aij) = Dii −
+
+n j=1
+
+Aij
+
+=
+
+0
+
+for all i ∈ V , so it is also doubly stochastic. Note that if the graph is δ-regular, then Pn(G)
+
+is the standard choice above. Modulo a small technical detail about the ratios of δmax to δi
+
+and the eigenvalue order of P (see Sec. 6.2), plugging Pn(G) from (8) above into Theorem 2
+
+immediately relates the convergence of distributed dual averaging to the spectral properties of the
+
+graph Laplacian, in particular, we have:
+
+f (xi(T )) − f (x∗) = O
+
+√RL T
+
+log(T n) λn−1(L(G))
+
+.
+
+(9)
+
+The following result summarizes our conclusions for the choice of stochastic matrix in (8) via (9) in application to diﬀerent network topologies.
+
+Corollary 1. Under the conditions of Theorem 2, we have the following convergence rates:
+
+(a) For k-connected paths and cycles,
+
+f (xi(T )) − f (x∗) = O
+
+√RL T
+
+n log(T n) k
+
+.
+
+9
+
+√√ (b) For k-connected n × n grids,
+
+√
+
+f (xi(T )) − f (x∗) = O
+
+√RL T
+
+n log(T n) k
+
+.
+
+(c) For random geometric graphs with connectivity radius r = Ω( log1+ǫ n/n) for any ǫ > 0,
+
+with high-probability.
+
+f (xi(T )) − f (x∗) = O
+
+√RL T
+
+n log
+
+n
+
+log(T
+
+n)
+
+(d) For expanders with bounded ratio of minimum to maximum node degree,
+
+f (xi(T )) − f (x∗) = O
+
+√RL log(T n) T
+
+.
+
+Note that u√p to logarithmic factors, the optimization term in the convergence rate is always of the order RL/ T , while the remaining terms vary depending on the network topology. Instead of stating convergence rates, in order to understand scaling issues as a function of network size and topology, it can be useful to re-state these results in terms of the number of iterations TG(ǫ; n) required to achieve error ǫ for network type G with n nodes. As some special cases, Corollary 1 implies the following scalings:
+
+• for the 1-connected single cycle graph, we have Tcycle(ǫ; n) = O(n2/ǫ2).
+
+• for the two-dimensional grid, we have Tgrid(ǫ; n) = O(n/ǫ2), and
+
+• for a bounded degree expander, we have Texp(ǫ; n) = O(1/ǫ2).
+
+In general, Theorem 2 implies that at most
+
+TG(ǫ; n) = O
+
+1 ǫ2
+
+·
+
+1
+
+−
+
+1 σ2(Pn(G))
+
+(10)
+
+iterations are required to achieve an ǫ-accurate solution when using the matrix Pn(G) previously
+
+deﬁned in (8).
+
+It is interesting to ask whether the upper bound (10) from our analysis is actually a sharp
+
+result, meaning that it cannot be improved (up to constant factors). On one hand, it is known that
+
+(even for centralized optimization algorithms), any subgradient method requires at least Ω
+
+1 ǫ2
+
+iterations to achieve ǫ-accuracy [NY83], so that the 1/ǫ2 term is unavoidable. The next proposition
+
+addresses the complementary issue, namely whether the inverse spectral gap term is unavoidable
+
+for
+
+the
+
+dual
+
+averaging
+
+algorithm.
+
+For
+
+the
+
+quadratic
+
+proximal
+
+function
+
+ψ(x)
+
+=
+
+1 2
+
+x 22, the following
+
+result establishes a lower bound on the number of iterations in terms of graph topology and network
+
+structure:
+
+Proposition 1. Consider the dual averaging algorithm (5a) and (5b) with quadratic proximal function and communication matrix Pn(G). For any graph G with n nodes, the number of iterations TG(c; n) required to achieve a ﬁxed accuracy c > 0 is lower bounded as
+
+TG(c; n) = Ω
+
+1 1 − σ2(Pn(G))
+
+.
+
+10
+
+The proof of this result, given in Section 6.3, involves constructing a “hard” optimization problem and lower bounding the number of iterations required for our algorithm to solve it. In conjunction with Corollary 1, Proposition 1 implies that our predicted network scaling is sharp. Indeed, in Section 9, we show that the theoretical scalings from Corollary 1—namely, quadratic, linear, and constant in network size n—are well-matched in simulations of our algorithm.
+
+3.3 Extensions to stochastic communication links
+Our results also extend to the case when the communication matrix P is time-varying and random— that is, the matrix P (t) is potentially diﬀerent for each t and randomly chosen (but it P (t) still obeys the constraints imposed by G). Such stochastic communication is of interest for a variety of reasons. If there is an underlying dense network topology, we might want to avoid communicating along every edge at each round to decrease communication and network congestion. For instance, the use of a gossip protocol [BGPS06], in which one edge in the network is randomly chosen to communicate at each iteration, allows for a more reﬁned trade-oﬀ between communication cost and number of iterations. Communication in real networks also incurs errors due to congestion or hardware failures, and we can model such errors by a stochastic process.
+The following theorem provides a convergence result for the case of time-varying random communication matrices. In particular, it applies to sequences {xi(t)}∞ t=0 and {zi(t)}∞ t=0 generated by the dual averaging algorithm with updates (5a) and (5b) with step size sequence {α(t)}∞ t=0, but in which pij is replaced with pij(t).
+Theorem 3 (Stochastic communication). Let {P (t)}∞ t=0 be an i.i.d. sequence of doubly stochastic matrices, and deﬁne λ2(G) : = λ2(E[P (t)⊤P (t)]). For any x∗ ∈ X and i ∈ V , with probability at least 1 − 1/T , we have
+
+f (xi(T )) − f (x∗)
+
+≤
+
+T
+
+1 α(T
+
+)
+
+ψ(x∗
+
+)
+
++
+
+L2 2T
+
+T t=1
+
+α(t − 1) +
+
+3L2 T
+
+6 log(T 2n) 1 − λ2(G)
+
++
+
+T √1 n
+
++
+
+2
+
+T
+α(t).
+t=1
+
+We provide a proof of the theorem in Section 7. Note that the upper bound from the theorem
+
+is valid for any sequence of non-increasing positive stepsizes {α(t)}∞ t=0. The bound consists of three
+
+terms, with the ﬁrst growing and the last two shrinking as the stepsize choice is reduced. If we
+
+assume that ψ(x∗) ≤ R2, then we can optim√ize the tradeoﬀ between these competing terms, and
+
+we
+
+ﬁnd
+
+that
+
+the
+
+stepsize
+
+sequence
+
+α(t)
+
+∝
+
+R 1√−λ2 Lt
+
+approximately
+
+minimizes
+
+the
+
+bound
+
+bound
+
+in
+
+the theorem. This yields the scaling
+
+f (xi(T ))
+
+−
+
+f (x∗)
+
+≤
+
+c
+
+√RL T
+
+·
+
+log(T n)
+
+,
+
+1 − λ2(E[P (t)⊤P (t)])
+
+(11)
+
+for a universal constant c. We can also boost the probability with which this result holds to 1−1/T k for any k > 1—without modifying the algorithm—at the cost of incurring a slightly higher constant penalty in the error bound.
+The setting of stochastic communication for distributed optimization was previously considered by Lobel and Ozdaglar [LO09]. They established convergence by assuming lower bounds on the entries of P whenever two nodes communicated. As a consequence, their bounds grew exponentially
+
+11
+
+in the number of nodes n in the network.3 In contrast, the rates given here for stochastic communication are directly comparable to the convergence rates in the previous section for ﬁxed transition matrices. More speciﬁcally, we have inverse dependence on the spectral gap of the expected network, and consequently polynomial scaling for any network, as well as faster rates dependent on network structure.
+
+3.4 Results for stochastic gradient algorithms
+
+Finally, none of our convergence results rely on the gradients being correct. Speciﬁcally, we can straightforwardly extend our results to the case of noisy gradients corrupted with zero-mean bounded-variance noise. This setting is especially relevant in situations such as distributed learning or wireless sensor networks, when data observed is noisy. Let Ft be the σ-ﬁeld containing all information up to time t, that is, gi(1), . . . , gi(t) ∈ Ft and xi(1), . . . , xi(t + 1) ∈ Ft for all i. We deﬁne a stochastic oracle that provides gradient estimates satisfying
+
+E [gi(t) | Ft−1] ∈ ∂fi(xi(t))
+
+and
+
+E
+
+gi(t)
+
+2 ∗
+
+| Ft−1
+
+≤ L2.
+
+(12)
+
+As a special case, this model includes an additive noise oracle that takes an element of the subgradient ∂fi(xi(t)) and adds to it bounded variance zero-mean noise. Theorem 4 gives our result in the case of stochastic gradients. We give the proof and further discussion in Section 8, noting that because we adapt the dual averaging algorithm, the analysis follows quite cleanly from the earlier analysis for the previous three theorems.
+
+Theorem 4 (Stochastic gradient updates). Let the sequence {xi(t)}∞ t=1 be as in Theorem 1, except that at each round of the algorithm agent i receives a vector gi(t) from an oracle satisfying
+condition (12). For each i ∈ V , we have
+
+E f (xi(T ))
+
+−
+
+f (x∗)
+
+≤
+
+T
+
+1 α(T
+
+)
+
+ψ(x∗
+
+)
+
++
+
+8L2 T
+
+T t=1
+
+α(t
+
+−
+
+1)
+
++
+
+3L2 T
+
+log(T √n) 1 − σ2(P )
+
+T t=1
+
+α(t).
+
+If we assume in addition that X has ﬁnite radius R : = supx∈X x − x∗ and that gi(t) ∗ ≤ L, then with probability at least 1 − δ,
+
+f (xi(T ))
+
+−
+
+f (x∗)
+
+≤
+
+T
+
+1 α(T
+
+)
+
+ψ(x∗)
+
++
+
+8L2 T
+
+T t=1
+
+α(t
+
+−
+
+1)
+
++
+
+3L2 T
+
+log(T √n) 1 − σ2(P )
+
+T t=1
+
+α(t)
+
++
+
+8LR
+
+log T
+
+1 δ
+
+.
+
+If we further assume that the gradient estimates gi(t) are uncorrelated given Ft−1, then with probability at least 1 − δ,
+
+f (xi(T ))−f (x∗)
+
+≤
+
+1 ψ(x∗)+ 8L2
+
+T α(T )
+
+T
+
+T t=1
+
+α(t−1)+ 3L2 T
+
+log(T √n) 1 − σ2(P )
+
+T t=1
+
+3LR log α(t)+ T
+
+1 δ
+
++4LR
+
+log
+
+1 δ
+
+.
+
+nT
+
+As with the case of stochastic√communication covered by Theorem 3, it should be clear that by
+
+choosing the stepsize α(t) ∝ R
+
+1−√σ2 Lt
+
+(P
+
+)
+
+,
+
+we
+
+have
+
+essentially
+
+the
+
+same
+
+optimization
+
+error
+
+guarantee
+
+as the bound (11), but with λ2(E[P (t)⊤P (t)]) replaced by σ2(P ).
+
+3More precisely, inspection of the constant C in equation (37) of their paper shows that it is of order γ−2(n−1), where γ is the lower bound on non-zero entries of P , so it is at least 4n−1.
+
+12
+
+4 Related Work
+
+Having stated and discussed our main results in the previous section, we can now more explicitly compare the results in this paper to those in previous work. Our aim here is to give a clear understanding of how our algorithm and results relate to and, in many cases, improve upon prior results. Speciﬁcally, with the results of Theorem 2 and Corollary 1 in hand, we can more directly compare our results to other work.
+As discussed in the introduction, other researchers have designed algorithms for solving the problem (1). Most previous work [LO09, NO09, NOOT09, RNV10] studies convergence of a (projected) gradient method in which each node i in the network maintains xi(t) ∈ X , and at time t performs the update
+
+xi(t + 1) = argmin
+x∈X
+
+1 2
+
+Pjixj(t) − αgi(t)
+
+2 2
+
+j∈N (i)
+
+(13)
+
+for gi(t) ∈ ∂fi(xi(t)). With the update (13), Corollary 5.5 in the paper [RNV10] shows that
+
+f (xi(T )) − f (x∗) = O
+
+αn3R2 T
+
++
+
+αL2
+
+(we the
+
+use our stepsize
+
+notation and
+
+α
+
+∝
+
+L√ n3/2R T
+
+,
+
+assumptions from Theorem 2). giving convergence rate O(n3/2
+
+The√above bound is RL/ T ). It is clear
+
+minimized by setting that this convergence
+
+rate is substantially slower than all the rates in Corollary 1.
+
+The distributed dual averaging algorithm (5a)–(5b) is quite diﬀerent from the update (13).
+
+The use of the proximal function ψ allows us to address problems with non-Euclidean geometry,
+
+which is useful, for example, for very high-dimensional problems or where the domain X is the
+
+simplex (e.g. [NY83, Chapter 3]). The diﬀerences between the algorithms become more pronounced
+
+in the analysis. Since we use dual averaging, we can avoid some technical diﬃculties introduced by
+
+the projection step in the update (13). Precisely because of this technical issue, earlier works [NO09,
+
+LO09] studied unconstrained optimization, and the averaging in zi(t) seems essential to the faster
+
+rates our approach achieves as well as the ease with which we can extend our results to stochastic
+
+settings.
+
+In other related work, Johansson et al. [JRJ09] establish network-dependent rates for Markov
+
+incremental gradient descent (MIGD), which maintains a single vector x(t) at all times. A token
+
+i(t) determines an active node at time t, and at time step t + 1 the token moves to one of its
+
+neighbors j ∈ N (i(t)), each with probability Pji(t). Letting gi(t)(t) ∈ ∂fi(t)(x(t)), the update is
+
+x(t + 1) = argmin
+x∈X
+
+1 2
+
+x(t) − αgi(t)(t)
+
+2 2
+
+.
+
+(14)
+
+Johansson et al. show that with optimal setting of α and symmetric transition matrix P , MIGD has
+
+convergence rate O(RL maxi
+
+nΓii T
+
+),
+
+where
+
+Γ
+
+is
+
+the
+
+return
+
+time
+
+matrix
+
+Γ
+
+=
+
+(I
+
+−
+
+P
+
++
+
+1111⊤/n)−1.
+
+In this case, let λi(P ) ∈ [−1, 1] denote the ith eigenvalue of P . The eigenvalues of Γ are thus 1 and
+
+1/(1 − λi(P )) for i > 1, and so we have
+
+n
+
+max
+i=1,...,n
+
+Γii
+
+≥
+
+tr(Γ)
+
+=
+
+1+
+
+n i=2
+
+1
+
+1 − λi(P )
+
+>
+
+max
+
+1
+
+−
+
+1 λ2(P
+
+)
+
+,
+
+1
+
+−
+
+1 λn
+
+(P
+
+)
+
+=
+
+1
+
+−
+
+1 σ2(P
+
+)
+
+.
+
+13
+
+Consequently, the bound in Theorem 2 is never weaker, and for certain graphs, our results are
+substantially tighter, as shown in Corollary 1. For d-dimensional grids (where d ≥ 2) we have T (ǫ; n) = O(n2/d/ǫ2), whereas MIGD scales as T (ǫ; n) = O(n/ǫ2). For well-connected graphs, such as expanders and the complete graph, the MIGD algorithm scales as T (ǫ; n) = O(n/ǫ2), essentially
+a factor of n worse than our results.
+
+5 Basic convergence analysis for distributed dual averaging
+In this section, we prove convergence of the distributed algorithm based on the updates (5a) and (5b). We begin in Section 5.1 by deﬁning some auxiliary quantities and establishing lemmas useful in the proof, and we prove Theorem 1 in Section 5.2.
+
+5.1 Setting up the analysis
+Using techniques related to those used in past work [NO09], we establish convergence via two auxiliary sequences, given by
+
+z¯(t)
+
+:=
+
+1 n
+
+n
+
+zi(t)
+
+and
+
+y(t) : = ΠψX (−z¯(t), α).
+
+(15)
+
+i=1
+
+We begin by showing that the average sum of gradients z¯(t) evolves in a very simple way. In particular, we have
+
+z¯(t + 1)
+
+=
+
+1 n
+
+n i=1
+
+n j=1
+
+pijzj (t) + gi(t)
+
+Consider the right-hand side above, let Z(t) = [z1(t) · · · zn(t)] be the matrix of vectors zi, and denote P = [p1 · · · pn]. Since the matrix P is doubly stochastic, we have
+
+1 n
+
+n i=1
+
+n
+pijzj (t)
+j=1
+
+=
+
+1 n
+
+Z (t)P
+
+11
+
+=
+
+1 n
+
+Z (t)11
+
+=
+
+z¯(t),
+
+which yields the evolution
+
+z¯(t
+
++
+
+1)
+
+=
+
+z¯(t)
+
++
+
+1 n
+
+n
+
+gj (t).
+
+(16)
+
+j=1
+
+Consequently, the (negative subgradient descent on the
+
+offunthctei)onavefr(axg)ed=dualni=s1eqfui(exn)c/en{, z¯t(ht)e}∞ to=n0lyevdoilﬀveerseanlcmeobsteilnikge
+
+standard gi(t) is a
+
+subgradient at xi(t) (which need not be the same as the subgradient gj(t) at xj(t)). The simple
+
+evolution (16) of the averaged dual sequence allows us to avoid diﬃculties with the non-linearity
+
+of projection that have been challenging in earlier work.
+
+Before proceeding with the proof of Theorem 1, we state two useful results regarding the con-
+
+vergence of the standard dual averaging algorithm, though we defer their proofs to Appendix A.
+
+We begin by giving a convergence guarantee for the single-objective form of the dual averaging
+
+14
+
+algorithm. Let {g(t)}∞ t=1 ⊂ Rd be an arbitrary sequence of vectors, and consider the sequence {x(t)}∞ t=1 deﬁned by
+
+x(t + 1) : = argmin
+x∈X
+
+t s=1
+
+g(s), x
+
++
+
+1 α(t)
+
+ψ(x)
+
+= ΠψX
+
+t
+g(s), α(t) .
+s=1
+
+(17)
+
+Lemma 2. For any non-increasing sequence {α(t)}∞ t=0 of positive stepsizes, and for any x∗ ∈ X ,
+
+we have
+
+T t=1
+
+g(t), x(t) − x∗
+
+≤
+
+1 2
+
+T t=1
+
+α(t
+
+−
+
+1)
+
+g(t)
+
+2 ∗
+
++
+
+1 α(T
+
+)
+
+ψ(x∗
+
+).
+
+Next we state a lemma that allows us to restrict our analysis to the easier to analyze centralized sequence {y(t)}∞ t=0 from (15):
+
+Lemma 3. Consider the sequences {xi(t)}∞ t=1, {zi(t)}∞ t=0, and {y(t)}∞ t=0 deﬁned according to equations (5a), (5b), and (15). Recall that each fi is L-Lipschitz. For each i ∈ V , we have
+
+T
+
+T
+
+T
+
+f (xi(t)) − f (x∗) ≤ f (y(t)) − f (x∗) + L α(t) z¯(t) − zi(t) ∗ .
+
+t=1
+
+t=1
+
+t=1
+
+Similarly,
+
+with
+
+the
+
+deﬁnitions
+
+y(T )
+
+:=
+
+1 T
+
+T t=1
+
+y(t)
+
+and
+
+xi(T )
+
+:=
+
+1 T
+
+T t=1
+
+xi(t),
+
+we
+
+have
+
+f (xi(T ))
+
+−
+
+f (x∗)
+
+≤
+
+f (y(T ))
+
+−
+
+f (x∗) +
+
+L T
+
+T t=1
+
+α(t)
+
+z¯(t) − zi(t)
+
+∗.
+
+Equipped with these tools, we now turn the proof of Theorem 1.
+
+5.2 Proof of Theorem 1
+
+Our proof is based on analyzing the sequence {y(t)}∞ t=0. Given an arbitrary x∗ ∈ X , we have
+
+T
+
+f (y(t)) − f (x∗) =
+
+T
+
+1 n
+
+n
+
+fi(xi(t)) − f (x∗) +
+
+T
+
+1 n
+
+n
+
+[fi(y(t)) − fi(xi(t))]
+
+t=1
+
+t=1 i=1
+
+t=1 i=1
+
+≤
+
+1 n
+
+T t=1
+
+n i=1
+
+fi(xi(t))
+
+−
+
+f (x∗)
+
++
+
+T t=1
+
+n i=1
+
+L n
+
+y(t) − xi(t)
+
+,
+
+(18)
+
+where the inequality follows by the L-Lipschitz condition on fi. Let gi(t) ∈ ∂fi(xi(t)) be a subgradient of fi at xi(t). Using convexity, we have the bound
+
+1T n
+
+n
+
+fi(xi(t))
+
+−
+
+fi(x∗)
+
+≤
+
+1 n
+
+T
+
+n
+
+gi(t), xi(t) − x∗ .
+
+(19)
+
+t=1 i=1
+
+t=1 i=1
+
+Breaking up the right hand side of (19) into two pieces, we obtain
+
+n
+
+n
+
+n
+
+gi(t), xi(t) − x∗ =
+
+gi(t), y(t) − x∗ +
+
+gi(t), xi(t) − y(t) .
+
+(20)
+
+i=1
+
+i=1
+
+i=1
+
+15
+
+By deﬁnition of the updates for z¯(t) and y(t), we have
+
+y(t) = argmin
+x∈X
+
+1 t−1 n n
+
+gi(s), x
+
++
+
+1 α(t)
+
+ψ(x)
+
+.
+
+s=1 i=1
+
+Thus, we see that the ﬁrst term in the decomposition (20) can be written in the same way as the bound in Lemma 2, and as a consequence, we have the bound
+
+1T n
+t=1
+
+n
+gi(t), y(t) − x∗
+i=1
+
+≤
+
+1 2
+
+T
+
+α(t − 1)
+
+t=1
+
+1 n
+
+n
+
+gi(t)
+
+i=1
+
+2 ∗
+
++
+
+1 α(T
+
+) ψ(x∗)
+
+≤ L2 T α(t − 1) + 1 ψ(x∗).
+
+(21)
+
+2
+
+α(T )
+
+t=1
+
+It remains to control the ﬁnal two terms in the bounds (18) and (20). Since gi(t) ∗ ≤ L by assumption, we have
+
+T nL t=1 i=1 n
+
+y(t) − xi(t)
+
++
+
+1 n
+
+T t=1
+
+n i=1
+
+gi(t), xi(t) − y(t)
+
+≤
+
+2L n
+
+T t=1
+
+n i=1
+
+y(t) − xi(t)
+
+=
+
+2L n
+
+T
+
+n
+
+ΠψX (−z¯(t), α(t)) − ΠψX (−zi(t), α(t)) .
+
+t=1 i=1
+
+By the α-Lipschitz continuity of the projection operator ΠψX (·, α) (see Appendix A.3), we have
+
+2L T n n t=1 i=1
+
+ΠψX (z¯(t), α(t)) − ΠψX (zi(t), α)
+
+≤
+
+2L n
+
+T t=1
+
+n i=1
+
+α(t)
+
+z¯(t) − zi(t)
+
+∗.
+
+Combining this bound with (18) and (21) yields the running sum bound
+
+T
+
+f (y(t)) − f (x∗)
+
+≤
+
+1 α(T
+
+)
+
+ψ(x∗
+
+)
+
++
+
+L2 2
+
+T
+
+α(t
+
+−
+
+1)
+
++
+
+2L n
+
+T
+
+n
+α(t) z¯(t) − zj(t) ∗ .
+
+(22)
+
+t=1
+
+t=1
+
+t=1 j=1
+
+Applying Lemma 3 to (22) gives that Tt=1[f (xi(t)) − f (x∗)] is upper bounded by
+
+1 α(T
+
+) ψ(x∗)
+
++
+
+L2 2
+
+T
+
+α(t
+
+−
+
+1)
+
++
+
+2L n
+
+T
+
+n
+
+T
+
+α(t) z¯(t) − zj(t) ∗ + L α(t) z¯(t) − zi(t) ∗ .
+
+t=1
+
+t=1 j=1
+
+t=1
+
+Dividing both sides by T and using convexity of f yields the bound (7).
+
+16
+
+6 Convergence rates, spectral gap, and network topology
+
+In this section, we will give concrete convergence rates for the distributed dual averaging algorithm
+
+based on the mixing time of a random walk according to the doubly stochastic matrix P . The
+
+understanding of the dependence of our convergence rates in terms of the underlying network
+
+topology is crucial, because it can provide important cues to the system administrator in a clustered
+
+computing environment or for the locations and connectivities of sensors in a sensor network. We
+
+begin in Section 6.1 with the proof of Theorem 2. In Section 6.2, we prove the graph-speciﬁc
+
+convergence rates stated in Corollary 1, whereas Section 6.3 contains a proof of the lower bound
+
+stated in Proposition 1.
+
+Throughout this section, we adopt the following notational conventions. For an n × n matrix
+
+B, we call its singular values σ1(B) ≥ σ2(B) ≥ · · · ≥ σn(B) ≥ 0. For a real symmetric B, we use
+
+λ1(B) ≥ λ2(B) ≥ . . . ≥ λn(B) to denote the n real eigenvalues of B. We let ∆n = {x ∈ Rn |
+
+x
+
+0,
+
+n i=1
+
+xi
+
+=
+
+1}
+
+denote
+
+the
+
+n-dimensional
+
+probability
+
+simplex.
+
+We make frequent use of the
+
+following standard inequality: for any positive integer t = 1, 2, . . . and any x ∈ ∆n,
+
+P tx − 11/n
+
+TV =
+
+1 2
+
+P tx − 11/n
+
+1
+
+≤
+
+1 2
+
+√ n
+
+P tx − 11/n
+
+2≤
+
+1 2
+
+σ2(P
+
+)t
+
+√ n.
+
+(23)
+
+For a brief review of the relevant standard Perron-Frobenius and matrix theory, we refer the reader to Appendix B.
+
+6.1 Proof of Theorem 2
+We focus on controlling the network error term in the bound (7), namely the quantity
+
+LT n
+
+n
+α(t) z¯(t) − zi(t) ∗ .
+
+t=1 i=1
+
+Deﬁne the matrix Φ(t, s) = P t−s+1 (in the sequel we allow the stochastic matrix P to change as a function of time). Let [Φ(t, s)]ji be the jth entry of the ith column of Φ(t, s). Then via a bit of algebra, we can write
+
+n
+
+t
+
+n
+
+zi(t + 1) = [Φ(t, s)]jizj(s) +
+
+[Φ(t, r)]jigj(r − 1) + gi(t).
+
+(24)
+
+j=1
+
+r=s+1 j=1
+
+Clearly the above reduces to the standard update (5a) when s = t. Since z¯(t) evolves simply as in (16), we assume that zi(0) = z¯(0) to avoid notational clutter—we can simply start with zi(0) = 0—and use (24) to see
+
+t−1 n
+
+z¯(t) − zi(t) =
+
+(1/n − [Φ(t − 1, s)]ji)gj(s − 1) +
+
+s=1 j=1
+
+1 n
+
+n
+(gj (t
+j=1
+
+−
+
+1)
+
+−
+
+gi(t
+
+−
+
+1))
+
+.
+
+(25)
+
+17
+
+We use the fact that gi(t) ∗ ≤ L for all i and t and (25) to see that
+
+z¯(t) − zi(t) ∗ =
+
+t−1 n
+(1/n − [Φ(t − 1, s)]ji)gj(s − 1) +
+s=1 j=1
+
+1 n
+
+n
+
+gj(t − 1) − gi(t − 1)
+
+j=1
+
+∗
+
+t−1 n
+≤
+s=1 j=1
+
+gj(s − 1)
+
+∗ |(1/n) − [Φ(t − 1, s)]ji| +
+
+1 n
+
+n
+
+i=1
+
+gj(t − 1) − gi(t − 1) ∗
+
+t−1
+
+≤ L [Φ(t − 1, s)]i − 11/n 1 + 2L.
+
+(26)
+
+s=1
+
+Now we break the sum in (26) into two terms separated by a cutoﬀ point t. The ﬁrst term
+
+consists of “throwaway” terms, that is, timesteps s for which the Markov chain with transition
+
+matrix P has not mixed, while the second consists of steps s for which [Φ(t − 1, s)]i − 11/n 1 is
+
+small. Note to uniform.
+
+that the indexing on From (23), [Φ(t, s)]j
+
+Φ(t − 1, s) − 11/n 1 ≤
+
+=√nPσt−2(sP+1)ti−ms+p1li.esHtehnacte,foifr
+
+small
+
+s,
+
+Φ(t
+
+−
+
+1,
+
+s)
+
+is
+
+close
+
+t
+
+−s
+
+≥
+
+log ǫ−1 log σ2(P )−1
+
+−
+
+1
+
+we immediately have
+
+√ [Φ(t, s)]j − 11/n 1 ≤ nǫ
+
+Thus,
+
+by
+
+setting
+
+ǫ−1
+
+=
+
+T √n,
+
+for
+
+t
+
+−s
+
++
+
+1
+
+≥
+
+log(T √n) log σ2(P )−1
+
+,
+
+we
+
+have
+
+[Φ(t, s)]j
+
+− 11/n
+
+1
+
+≤
+
+1 T
+
+.
+
+(27)
+
+For larger√s, we simply have [Φ(t, s)]j − 11/n 1 ≤ 2. The above suggests that we split the sum at
+
+t=
+
+log T log σ2(P
+
+n )−1
+
+.
+
+We break
+
+apart
+
+the sum in (26)
+
+and use (27)
+
+to see
+
+that
+
+since t − 1 − (t − t) = t
+
+and there are at most T steps in the summation,
+
+t−1
+
+t−1−t
+
+z¯(t) − zi(t) ∗ ≤ L
+
+Φ(t − 1, s)ei − 11/n 1 + L
+
+Φ(t − 1, s)ei − 11/n 1 + 2L
+
+s=t−t √
+
+s=1
+√
+
+≤
+
+2L
+
+log(T log σ2(P
+
+n) )−1
+
++
+
+3L
+
+≤
+
+2L
+
+log(T n) 1 − σ2(P )
+
++
+
+3L.
+
+(28)
+
+The last inequality follows from the concavity of log(·), since log σ2(P )−1 ≥ 1 − σ2(P ).
+Combining (28) with the running sum bound in (22) of the proof of the basic theorem, Theorem 1, we immediately see that for x∗ ∈ X ,
+
+T
+f (y(t)) − f (x∗) ≤
+t=1
+
+1 α(T
+
+) ψ(x∗)
+
++
+
+L2 2
+
+T t=1
+
+α(t
+
+−
+
+1)
+
++
+
+6L2
+
+T t=1
+
+α(t)
+
++
+
+4L2
+
+log(T √n) 1 − σ2(P )
+
+T
+α(t).
+t=1
+
+(29)
+
+Appealing constants.
+
+to Lemma Note that
+
+3
+
+allows us
+
+T t=1
+
+t−1/2
+
+to ≤
+
+ob√tain the 2 T − 1.
+
+same result on the sequence Thus, using the assumption
+
+xi(t) that
+
+with slightly ψ(x∗) ≤ R2,
+
+worse using
+
+convexity
+
+to
+
+bound
+
+f (y(T ))
+
+≤
+
+1 T
+
+T t=1
+
+f (y(t))
+
+(and
+
+similarly
+
+for
+
+xi(T )),
+
+and
+
+setting
+
+α(t)
+
+as
+
+in
+
+the
+
+statement of the theorem completes the proof.
+
+18
+
+6.2 Proof of Corollary 1
+
+The corollary is based on bounding the spectral gap of the matrix Pn(G) from equation (8).
+
+Lemma 4. The matrix Pn(G) satisﬁes the bound
+
+σ2(Pn(G)) ≤ max
+
+1
+
+−
+
+mini δi δmax + 1
+
+λn−1(L),
+
+δmax δmax +
+
+1 λ1(L)
+
+−
+
+1
+
+.
+
+Proof By a theorem of Ostrowski on congruent matrices (cf. Theorem 4.5.9, [HJ85]), we have
+
+λk(D1/2LD1/2) ∈
+
+min
+i
+
+δiλk
+
+(L),
+
+max
+i
+
+δi
+
+λk
+
+(L)
+
+.
+
+(30)
+
+Since LD1/211 = 0, we have λn(L) = 0, and so it suﬃces to focus on λ1(D1/2LD1/2) and λn−1(D1/2LD1/2). From the deﬁnition (8), the eigenvalues of P are of the form 1 − (δmax + 1)−1λk(D1/2LD1/2).
+The bound (30) coupled with the fact that all the eigenvalues of L are non-negative implies that σ2(P ) = maxk<n 1 − (δmax + 1)−1λk(D1/2LD1/2) is upper bounded by the larger of
+
+1
+
+−
+
+δmin δmax +
+
+1 λn−1(L)
+
+and
+
+δmax δmax +
+
+1
+
+λ1
+
+(L)
+
+−
+
+1.
+
+Much of spectral graph theory is devoted to bounding λn−1(L) suﬃciently far away from zero, and
+
+Lemma 4 allows us to conveniently leverage such results for bounding the convergence rate of our
+
+algorithm.
+
+Note that computing the upper bound in Lemma 4 requires controlling both λn−1(L) and
+
+λ1(L). In order to circumvent this complication, we use the well-known idea of a “lazy” random
+
+walk
+
+[Chu98,
+
+LPW08],
+
+in which we
+
+replace
+
+P
+
+by
+
+1 2
+
+(I
+
++
+
+P
+
+).
+
+The
+
+resulting
+
+symmetric matrix
+
+has
+
+the same eigenstructure as P , and moreover, we have
+
+σ2
+
+1 2
+
+(I
+
++
+
+P
+
+)
+
+= λ2
+
+1 2
+
+(I
+
++
+
+P
+
+)
+
+= λ2
+
+I
+
+−
+
+1 2(δmax
+
++
+
+1)
+
+D1/2LD1/2
+
+≤
+
+1−
+
+δmin 2(δmax +
+
+1) λn−1(L).
+
+(31)
+
+Consequently, it is suﬃcient to bound only λn−1(L), which is more convenient from a technical standpoint. The convergence rate implied by the lazy random walk through Theorem 2 is no worse
+than twice that of the original walk, which is insigniﬁcant for the analysis in this paper.
+
+We are now equipped to address each of the graph classes covered by Corollary 1.
+
+Cycles and paths: Recall the regular k-connected cycle from Figure 1(a), constructed by placing the n nodes on a circle and connecting every node to k neighbors on the right and left. For this graph, the Laplacian L is a circulant matrix with diagonal entries 1 and oﬀ-diagonal non-zero entries −1/2k. Known results on circulant matrices (see Chapter 3 of Gray [Gra06]) imply that it has mth eigenvalue
+
+λm(L)
+
+=
+
+1
+
+−
+
+1 2k
+
+k j=1
+
+exp
+
+(−2πijm/n)
+
+−
+
+1 2k
+
+k j=1
+
+exp
+
+(−2πi(n
+
+−
+
+j)m/n)
+
+=
+
+1
+
+−
+
+1 k
+
+k j=1
+
+cos
+
+2πjm n
+
+.
+
+19
+
+For m = n − 1 and k = o(n), the last equation can be massaged into [BGPS06, Section VI.A]
+
+λn−1(L) = 1 − cos
+
+2πk n
+
++Θ
+
+k4 n4
+
+.
+
+By performing a Taylor expansion of cos(·), we see that λn−1(L) = Θ
+
+k2 n2
+
+for k = o(n).
+
+Now consider the regular k-connected path, a path in which each node is connected to the k
+
+neighbors see that if
+
+okn≤its√rnig, httheanndλnle−f1t(.LB)y=coΘm(kp2u/tnin2g).CNhoeteegearlscoonthstaatnftosr
+
+(see the
+
+Lemma 6 in k-connected
+
+Appendix path on n
+
+C), we nodes,
+
+mini δi = k and δmax = 2k. Thus, we can combine the pre√vious two paragraphs with Lemma 4 to see that for regular k-connected paths or cycles with k ≤ n,
+
+σ2(P ) = 1 − Θ
+
+k2 n2
+
+.
+
+(32)
+
+Substituting the bound (32) into Theorem 2 yields the claim of Corollary 1(a).
+
+√√ Regular grids: Now consider the case of a n-by- n grid, focusing speciﬁcally on regular k-
+
+connected grids, in which any node is joined to every node that is fewer than k horizontal or
+
+vertical edges away in an axis-aligned direction. In this case, we use results on Cartesian products
+
+otofrgoridapalhs√√[nC-hbuy9-√8,nSekc-tcioonnne2c.6te] dtograindaliys zseimthpelyeitgheen-Cstarrutcetsuiarne
+
+of the Laplacian. In particular, the product of two regular k-connected
+
+cycles of n nodes. The second smallest eigenvalue of a Cartesian product of graphs is half the
+
+minimum of second-smallest eigenvalues of the original graphs [Chu98, Theorem√2.13]. Thus, based
+
+on the preceding discussion λn−1(L) = Θ(k2/n). For a
+
+noofnk-t-ocoronindeaclte√dnc-byycl-e√s,nwgeridco(nicnluwdheicthhattheif
+
+k = o( network
+
+n), then we have is not “wrapped”
+
+on its boundaries, as in Figure 1(b)), we use the previous discussion√of regular k-connected paths,
+
+since the grid that λn−1(L)
+
+is =
+
+the Cartesian Θ(k2/n). In
+
+product of two both cases, for
+
+k√-conne√cted paths of n nodes. We immediately see n-by- n k-connected grids, we use Lemma 4 and
+
+(31) to see that for k ≤ n1/4,
+
+σ2(P ) = 1 − Θ
+
+k2 n
+
+.
+
+(33)
+
+The result in Corollary 1(b) immediately follows.
+
+Random geometric graphs: Using the proof of Lemma 10 from Boyd et al. [BGPS06], we see that for any ǫ > 0, if r = log1+ǫ n/(nπ), then with probability at least 1 − 2/nc−1,
+
+min
+i
+
+δi
+
+≥
+
+log1+ǫ
+
+n
+
+−
+
+√ 2c
+
+log
+
+n
+
+and
+
+max
+i
+
+δi
+
+≤
+
+log1+ǫ
+
+n
+
++
+
+√ 2c
+
+log
+
+n.
+
+(34)
+
+Thus, letting L be the graph Laplacian of a random geometric graph, if we can bound λn−1(L), (34) coupled with Lemma 4 will control the convergence rate of our algorithm.
+Recent work of von Luxburg et al. [vLRH10] gives concentration results on the second-smallest
+eigenvalue of a geometric graph. In particular, their Theorem 3 says that there are universal constants c1, . . . , c5 > 0 such that with probability at least 1−c1n exp(−c2nr2)−c3 exp(−c4nr2)/r2,
+
+20
+
+λn−1(L) ≥ c5r2. Parsing this a bit, we see that if r = ω( log n/n), then with exceedingly high probability, λn−1(L) = Ω(r) = ω(log n/n). Using (34), we see that for r = (log1+ǫ n/n)1/2,
+
+mini δi maxi δi
+
+=
+
+Θ(1)
+
+and
+
+λn−1(L) = Ω
+
+log1+ǫ n n
+
+with high probability. Combining the above equation with Lemma 4 and (31), we have
+
+σ2(P ) = 1 − Ω
+
+log1+ǫ n n
+
+.
+
+(35)
+
+Thus we have obtained the result of Corollary 1(c). Our bounds show that a grid and a random geometric graph exhibit the same convergence rate up to logarithmic factors.
+
+Expanders: The constant spectral gap in expanders [Chu98, Chapter 6] removes any penalty due to network communication (up to logarithmic factors), and hence yields Corollary 1(d).
+
+6.3 Proof of Proposition 1
+
+We now give a proof of Proposition 1, which shows that the dependence of our convergence rates
+
+on the spectral gap is tight. The proof is based on construction of a set of objective functions fi
+
+that force convergence to be slow by using the second eigenvector of the communication matrix P .
+
+Recall that 11 ∈ Rn is the eigenvector of P corresponding to its largest eigenvalue (equal to
+
+1). Let v ∈ Rn be the eigenvector of P corresponding to its second singular value, σ2(P ). By
+
+using the lazy random walk deﬁned in Section 6.2, we may assume without loss of generality that
+
+λ2(P ) = σ2(P ). Let w =
+
+v v
+
+be a normalized version of the second eigenvector of P , and note
+
+that
+
+n i=1
+
+wi
+
+=
+
+0.
+
+Without
+
+∞
+loss
+
+of
+
+generality,
+
+we
+
+assume
+
+that
+
+there
+
+is
+
+an
+
+index
+
+i
+
+for
+
+which
+
+wi
+
+=
+
+−1
+
+(otherwise we can ﬂip signs in what follows); moreover, by re-indexing as needed, we may assume
+
+that w1 = −1. We set X = [−1, 1] ⊂ R, and deﬁne the univariate functions fi(x) : = (c + wi)x, so
+
+that the global problem is to minimize
+
+1 n
+
+n i=1
+
+fi(x)
+
+=
+
+1 n
+
+n
+(c +
+i=1
+
+wi)x
+
+=
+
+cx
+
+for some constant c > 0 to be chosen. Note that each fi is c + 1-Lipschitz. By construction, we see immediately that x∗ = −1 is optimal for the global problem.
+Now consider the evolution of the {z(t)}∞ t=0 ⊂ Rn, as generated by the update (5a). By construction, we have gi(t) = c + wi for all t = 1, 2, . . .. Deﬁning the vector g = (c11 + w) ∈ Rn, we
+have the evolution
+
+t
+z(t + 1) = P z(t) + g = P 2z(t − 1) + P g + g = · · · = P τ g
+
+τ =0
+
+t−1
+
+t−1
+
+t−1
+
+= P τ (w + c11) = P τ w + ct11 = σ2(P )τ w + ct11
+
+(36)
+
+τ =0
+
+τ =0
+
+τ =0
+
+since P 11 = 11.
+
+21
+
+In order to establish a lower bound, it suﬃces to show that at least one node is far from the optimum after t steps, and we focus on node 1. Since w1 = −1, the evolution (36) guarantees that
+
+z1(t
+
++
+
+1)
+
+=
+
+−
+
+t−1
+σ2(P )τ
+τ =0
+
++
+
+ct
+
+=
+
+ct
+
+−
+
+1
+
+− σ2(P )t−1 1 − σ2(P )
+
+.
+
+(37)
+
+Recalling
+
+that
+
+ψ(x)
+
+=
+
+1 2
+
+x2
+
+for
+
+this
+
+scalar
+
+setting,
+
+we
+
+have
+
+xi(t + 1) = argmin
+x∈X
+
+zi(t
+
++
+
+1)x
+
++
+
+1 2α(t)
+
+x2
+
+= argmin
+x∈X
+
+x + α(t)zi(t + 1) 2
+
+Hence x1(t) is the projection of −α(t)z1(t + 1) onto [−1, 1], and unless z1(t) > 0 we have
+
+f (x1(t)) − f (−1) ≥ c > 0.
+
+If t is overly small, the relation (37) will guarantee that z1(t) ≤ 0, so that x1(t) is far from the optimum. If we choose c ≤ 1/3, then a little calculation shows that we require t = Ω((1− σ2(P ))−1) in order to drive z1(t) below zero.
+
+7 Convergence rates for stochastic communication
+In this section, we develop theory appropriate for stochastic and time-varying communication, which we model by a sequence {P (t)}∞ t=0 of random matrices. We begin in Section 7.1 with basic convergence results in this setting, and then prove Theorem 3. Section 7.2 contains a more detailed treatment of the case of gossip algorithms, and Section 7.3 contains the setting of edge failures.
+
+7.1 Basic convergence analysis
+
+Recall
+
+that
+
+Theorem
+
+1
+
+involves
+
+the
+
+sum
+
+2L n
+
+T t=1
+
+n i=1
+
+α(t)
+
+z¯(t) − zi(t)
+
+∗. In Section 6, we showed
+
+how to control this sum when communication between agents occurs on a static underlying network
+
+structure via a doubly-stochastic matrix P . We now relax the assumption that P is ﬁxed and instead
+
+let P (t) vary over time.
+
+7.1.1 Markov chain mixing for stochastic communication
+
+We use P (t) = [p1(t) · · · pn(t)] to denote the doubly stochastic symmetric matrix at iteration t. The update employed by the algorithm, modulo changes in P , is given by the usual updates (5a) and (5b)—namely,
+
+n
+zi(t + 1) = pij(t)zj(t) + gi(t), xi(t + 1) = ΠψX (zi(t + 1), α).
+j=1
+
+In this case, our analysis makes use of the modiﬁed deﬁnition Φ(t, s) = P (s)P (s + 1) · · · P (t).
+
+However,
+
+we
+
+still
+
+have
+
+the
+
+evolution
+
+of
+
+z¯(t + 1)
+
+=
+
+z¯(t) −
+
+1 n
+
+n i=1
+
+gi(t)
+
+from
+
+equation
+
+(16),
+
+and
+
+moreover, (25) holds essentially unchanged:
+
+z¯(t)
+
+−
+
+zi(t)
+
+=
+
+t−1 s=1
+
+n
+(1/n
+j=1
+
+−
+
+[Φ(t
+
+−
+
+1,
+
+s)]ji)gj (s
+
+−
+
+1)
+
++
+
+1 n
+
+n j=1
+
+(gj (t
+
+−
+
+1)
+
+−
+
+gi(t
+
+−
+
+1))
+
+.
+
+(38)
+
+22
+
+To show convergence for the random communication model, we must control the convergence of Φ(t, s) to the uniform distribution. We ﬁrst claim that
+
+P Φ(t, s)ei − 11/n 2 ≥ ǫ ≤ ǫ−2λ2 E[P (t)2] t−s+1 ,
+
+(39)
+
+which we establish by recalling and modifying a few known results [BGPS06].
+Let ∆n denote the n-dimensional probability simplex and the vector u(0) ∈ ∆n be arbitrary. Consider the random sequence {u(t)}∞ t=0 generated by the recursion u(t + 1) = P (t)u(t). Let v(t) : = u(t) − 11/n correspond to the portion of u(t) orthogonal to the all 1s vector. Calculating
+the second moment of v(t + 1), we have
+
+E v(t + 1), v(t + 1) | v(t) = E v(t)T P (t)T P (t)v(t) | v(t) = v(t)T E[P (t)T P (t)]v(t) ≤ v(t) 22λ2 EP (t)T P (t) = v(t) 22λ2(EP (t)2)
+since v(t), 11 = 0, v(t) is orthogonal to the ﬁrst eigenvector of P (t), and P (t) is symmetric. Applying Chebyshev’s inequality yields
+
+P
+
+u(t) − 11/n u(0) 2
+
+2
+
+≥ǫ
+
+≤
+
+E v(t) 2
+
+u(0)
+
+2 2
+
+ǫ2
+
+≤ ǫ−2
+
+v(0)
+
+22λ2 EP (t)2
+
+u(0)
+
+2 2
+
+t
+.
+
+Replacing u(0) with ei and noting that ei − 11/n 2 ≤ 1 yields the claim (39).
+
+7.1.2 Proof of Theorem 3
+
+Using the claim (39), we now prove the main theorem of this section, following an argument similar
+to the proof of Theorem 2. We begin by choosing a (non-random) time index t such that for t − s ≥ t, with exceedingly high probability, Φ(t, s) is close to the uniform matrix 1111T /n. We
+then break the summation from 1 to T into two separate terms, separated by the cut-oﬀ point t. Throughout this derivation, we let λ2 = λ2(E[P (t)2]), where we have suppressed the dependence of λ2 on graph structure G to ease notation.
+Using the probabilistic bound (39), note that
+
+t
+
+−
+
+s
+
+≥
+
+3 log ǫ−1 log λ−2 1
+
+−
+
+1
+
+implies
+
+P
+
+Φ(t, s)ei − 11/n 2 ≥ ǫ ≤ ǫ.
+
+Consequently, if we make the choice
+
+t
+
+:=
+
+3 log(T 2n) log λ−2 1
+
+=
+
+6 log T + 3 log n log λ−2 1
+
+≤
+
+6
+
+log
+
+T 1
+
++ 3 log − λ2
+
+n
+
+,
+
+then we are guaranteed that if t − s ≥ t − 1, then
+
+P
+
+Φ(t, s)ei − 11/n
+
+2 ≥ 1/(T 2n)
+
+3 log(T 2n)
+≤ (T 2n)2λ2 − log λ2
+
+= (T 2n)2 elog λ2
+
+log(T 6n3) − log λ2
+
+=
+
+1 T 2n
+
+.
+
+(40)
+
+23
+
+Recalling the bound (26), we have
+
+t−1
+
+z¯(t) − zi(t) ∗ ≤ L Φ(t − 1, s)ei − 11/n 1 + 2L
+s=1
+
+t−1
+
+t−1−t
+
+=L
+
+Φ(t − 1, s)ei − 11/n 1 + L
+
+Φ(t − 1, s)ei − 11/n 1 + 2L
+
+s=t−t
+
+s=1
+
+≤
+
+2L 3
+
+log(T 2n) 1 − λ2
+
++
+
+√ t−1−t Ln
+s=1
+
+Φ(t − 1, s)ei − 11/n
+
+2 +2L.
+
+(41)
+
+S
+
+It remains to bound the sum S. For any ﬁxed pair s′ < s, since the matrices P (t) are doubly stochastic, we have
+
+Φ(t − 1, s′)ei − 11/n 2 = ≤
+≤
+
+Φ(s − 1, s′)Φ(t − 1, s)ei − 11/n 2 Φ(s − 1, s′) 2 Φ(t − 1, s)ei − 11/n 2
+Φ(t − 1, s)ei − 11/n 2,
+
+where the ﬁnal inequality uses the bound |||Φ(s − 1, s′)|||2 ≤ 1. From the bound (40), we have the
+
+bound
+
+Φ(t − 1, t − t − 1)ei − 11/n
+
+2≤
+
+1 T 2n
+
+with probability at least 1 − 1/(T 2n).
+
+Since
+
+s ranges
+
+between 1 and t − t in the summation S, we conclude that
+
+√ S ≤ L nT
+
+1 T 2n
+
+√
+
+=
+
+L T
+
+n 2n
+
+,
+
+and hence assuming that n ≥ 3,
+
+z¯(t) − zi(t)
+
+∗
+
+≤
+
+L
+
+6
+
+log(T 2n) 1 − λ2
+
++
+
+√ Ln
+
+1 Tn
+
++
+
+2L
+
+with probability at least 1 − 1/(T 2n). Applying the union bound over all iterations t = 1, . . . , T and nodes i = 1, . . . , n, we obtain
+
+P
+
+max max
+t≤T i≤n
+
+z¯(t) − zi(t)
+
+∗
+
+>
+
+6L log(T 2n) 1 − λ2
+
++
+
+√L Tn
+
++ 2L
+
+≤
+
+1 T
+
+.
+
+Recalling the master bound from Theorem 1 completes the proof.
+
+In the remainder of this section, we give some applications of the stochastic framework outlined above, showing a few sampling schemes and giving bounds on their convergence rates.
+
+7.2 Gossip-like protocols
+Gossip algorithms are procedures for achieving consensus in a network robustly and quickly by randomly selecting one edge (i, j) in the network for communication at each iteration [BGPS06]. Once nodes i and j are selected, their values are averaged. Gossip algorithms drastically reduce communication in the network, yet they still enjoy fast convergence and are robust to changes in topology.
+
+24
+
+7.2.1 Partially asynchronous gossip protocols
+
+In a partially asynchronous iterative method, agents synchronize their iterations [BT89]. This
+
+is the model of standard gossip protocols, where computation proceeds in rounds, and in each
+
+round communication occurs on one random edge. In our framework, this corresponds to using the
+
+random
+
+transition
+
+matrix
+
+P (t) =
+
+I
+
+−
+
+1 2
+
+(ei
+
+− ej )(ei
+
+− ej )T .
+
+It
+
+is
+
+clear
+
+that
+
+P (t)T P (t)
+
+=
+
+P (t),
+
+since
+
+P (t) is a projection matrix.
+
+Let A be the adjacency matrix of the graph G and D be the diagonal matrix of its degrees as
+
+in Section 6.2. At round t, edge (i, j) (with Aij = 1) is chosen with probability 1/ 11, A11 . Thus,
+
+EP (t) =
+
+1 11, A11
+
+I
+
+−
+
+1 2
+
+(ei
+
+− ej )(ei
+
+− ej )T
+
+=
+
+I
+
+−
+
+1 11, A11
+
+(D − A)
+
+(i,j):Aij =1
+
+=I−
+
+1 11, A11
+
+D1/2(I − D−1/2AD−1/2)D1/2 = I −
+
+1 11, A11
+
+D1/2LD1/2
+
+(42)
+
+since (i,j):Aij=1(ei − ej)(ei − ej)T = 2(D − A). Using an identical argument as that for Lemma 4, we see that (42) implies that
+
+λ2(EP (t)) ≤ 1 −
+
+mini δi 11, A11
+
+λn−1(L).
+
+Note that 11, A11 = 11, D11 , so that for approximately regular graphs, 11, A11 ≈ nδmax, and mini δi/ 11, A11 ≈ 1/n. Thus, at the expense of a factor of roughly 1/n in convergence rate, we can reduce the number of messages sent per round from the number of edges in the graph, Θ(nδmax), to one. In a clustered computing environment with some centralized control, it is possible to select
+more than one edge per round so long as no two edges share vertices (for example, by selecting a random maximal matching) and still have P (t)T P (t) = P (t). For a δ-regular graph, choosing a
+random maximal matching achieves a spectral gap within constant factors of the spectral gap of
+the underlying graph but uses only Θ(1/δ) as much communication.
+
+7.2.2 Totally asynchronous gossip protocol
+Now we relax the assumption that agents have synchronized clocks, so the iterations of the algorithm are no longer synchronized. Suppose that each agent has a random clock ticking at real-valued times, and at each clock tick, the agent randomly chooses one of its neighbors to communicate with. Further assume that each agent computes an iterative approximation to gi ∈ ∂fi(xi(t)), and that the approximation is always unbiased (an example of this is when fi is the sum of several functions, and agent i simply computes the subgradient of each function sequentially). We assume that no two agents have clocks tick at the same time. This communication corresponds to a gossip protocol with stochastic subgradients, and its convergence can be described simply by combining (42) with Theorem 4. This type of algorithm is well-suited to completely decentralized environments, such as sensor networks.
+
+7.3 Random edge inclusion and failure
+The two communication “protocols” we analyze now make selection of each edge at each iteration of the algorithm independent. We begin with random edge inclusions and follow by giving convergence
+
+25
+
+guarantees for random edge failures. For both protocols, since computation of EP (t)2 is in general
+
+non-trivial, we work with the model of lazy random walks described in Section 6.2. In the lazy
+
+random
+
+walk
+
+model,
+
+the
+
+communication
+
+matrix
+
+at
+
+each
+
+round
+
+is
+
+1 2
+
+I
+
++
+
+1 2
+
+P
+
+(t),
+
+which
+
+is
+
+symmetric
+
+PSD since σ1(P (t)) ≤ 1. Further, for any symmetric PSD stochastic matrix P , P 2 P . With
+
+that
+
+in
+
+mind,
+
+we
+
+see
+
+that
+
+E(
+
+1 2
+
+I
+
++
+
+1 2
+
+P
+
+(t))2
+
+1 2
+
+I
+
++
+
+1 2
+
+EP
+
+(t),
+
+and
+
+applying
+
+Weyl’s
+
+Theorem
+
+for
+
+the
+
+eigenvalues of a Hermitian matrix [HJ85, Theorem 4.3.1],
+
+λ2
+
+E
+
+1 2
+
+I
+
++
+
+1 2
+
+P
+
+(t)
+
+2
+
+≤ λ2
+
+1 2
+
+I
+
++
+
+1 2
+
+EP
+
+(t)
+
+=
+
+1 2
+
++
+
+1 2
+
+λ2
+
+(EP
+
+(t)).
+
+(43)
+
+Thus any bound on λ2(EP (t)) provides an upper bound on the convergence rate of the distributed
+
+dual averaging algorithm with random communication, as in Theorem 3.
+
+Consider the communication protocol in which with probability 1−δi/(δmax +1), node i does not
+
+communicate, and otherwise the node picks a random neighbor. If a node i picks a neighbor j, then
+
+j also communicates back with i to ensure double stochasticity of the transition matrix. We let A(t)
+
+be the random adjacency matrix at time t. When there is an edge (i, j) in the underlying graph, the
+
+probability
+
+that
+
+node
+
+i
+
+picks
+
+edge
+
+(i, j)
+
+is
+
+1/(δmax + 1),
+
+and
+
+thus
+
+EA(t)ij
+
+=
+
+2δmax +1 (δmax +1)2
+
+.
+
+The
+
+random
+
+communication matrix is P (t) = I − (δmax + 1)−1(D(t) − A(t)). Let A and D be the adjacency
+
+matrix and degree matrix of the underlying (non-stochastic) graph and P be communication matrix
+
+deﬁned in (8).
+
+With these deﬁnitions, EA(t) =
+
+2δmax +1 (δmax +1)2
+
+A,
+
+ED(t)
+
+=
+
+2δmax +1 (δmax +1)2
+
+D,
+
+and
+
+A−D
+
+=
+
+(P − I)(δmax + 1). We have
+
+EP (t) = I − (δmax + 1)−1(ED(t) − EA(t)) =
+
+δmax δmax + 1
+
+2
+
+I
+
++
+
+2δmax + 1 (δmax + 1)2
+
+P,
+
+and hence
+
+1
+
+−
+
+λ2(EP (t))
+
+=
+
+2δmax + 1 (δmax + 1)2
+
+(1
+
+−
+
+λ2(P )).
+
+Using (43), we see that the spectral gap decreases (and hence convergence rate may slow) by a factor proportional to the maximum degree in the graph. This is not surprising, since the amount of communication performed decreases by the same factor.
+A related model we can analyze is that of a network in which at every time step of the algorithm, an edge fails with probability ρ independently of the other edges. We assume we are using the model of communication in the prequel, so P (t) = I − (δmax + 1)−1D(t) + (δmax + 1)−1A(t). Let A, D, and P be as before and L be the Laplacian of the underlying graph; we easily have
+
+EP
+
+(t)
+
+=
+
+I
+
+−
+
+1−ρ δmax +
+
+1D
+
+−
+
+1−ρ δmax +
+
+1A
+
+=
+
+I
+
+−
+
+1−ρ δmax +
+
+1 D1/2LD1/2
+
+=
+
+ρI
+
++
+
+(1
+
+−
+
+ρ)P
+
+√ and λ2(EP (t)) = ρ + (1 − ρ)λ2(P ). Applying (11), we see that we lose at most a factor of 1 − ρ
+
+in the convergence rate.
+
+8 Stochastic Gradient Optimization
+In this section, we show that the algorithm we have presented naturally generalizes to the case in which the agents do not receive true subgradient information but only an unbiased estimate of a subgradient of fi. That is, during round t agent i receives a vector gi(t) with Egi(t) =
+26
+
+gi(t) ∈ ∂fi(xi(t)). The proof is made signiﬁcantly easier by the dual averaging algorithm, which by virtue of the simplicity of its dual update smooths the propagation of errors from noisy estimates of individual subgradients throughout the network. This was a diﬃculty in prior work, where signiﬁcant care was needed in the analysis to address passing noisy gradients through nonlinear projections [RNV10].
+
+8.1 Proof of Theorem 4
+
+We begin by using convexity and the Lipschitz continuity of the fi (see equations (18) and (19)),
+
+thereby obtaining that the running sum S(T ) =
+
+T t=1
+
+f (y(t))
+
+−
+
+f (x∗)
+
+is
+
+upper
+
+bounded
+
+as
+
+S(T ) ≤
+
+T
+
+1 n
+
+n
+
+t=1 i=1
+
+=
+
+T t=1
+
+1 n
+
+n i=1
+
+gi(t), xi(t) − x∗ gi(t), xi(t) − x∗
+
+Tn
+
++
+
+L y(t) − xi(t)
+
+t=1 i=1
+
++
+
+T t=1
+
+1 n
+
+n i=1
+
+L
+
+y(t) − xi(t)
+
++
+
+T t=1
+
+1 n
+
+n i=1
+
+gi(t) − gi(t), xi(t) − x∗ . (44)
+
+We bound the ﬁrst two terms of (44) using the same derivation as that for Theorem 1. In par-
+
+ticular,
+
+n i=1
+
+gi(t), xi(t) − x∗
+
+=
+
+n i=1
+
+gi(t), y(t) − x∗
+
++
+
+n i=1
+
+gi(t), xi(t) − y(t) , and nothing in
+
+Lemma 2 assumes that gi(t) is related to fi(xi(t)). So we upper bound the ﬁrst term in (44) with
+
+1 α(T
+
+)
+
+ψ(x∗)
+
++
+
+1 2
+
+T t=1
+
+α(t
+
+−
+
+1)
+
+1 n
+
+n
+
+gi(t)
+
+i=1
+
+2 ∗
+
++
+
+T t=1
+
+1 n
+
+n i=1
+
+gi(t), xi(t) − y(t)
+
+.
+
+(45)
+
+H¨older’s inequality implies that E[ gi(t) ∗ gj(s) ∗] ≤ L2 and E gi(t) ∗ ≤ L for any i, j, s, t. We use the two inequalities to bound (45). We have
+
+E
+
+1 n
+
+n
+
+gi(t)
+
+i=1
+
+2 ∗
+
+≤
+
+1 n2
+
+n
+E
+i,j=1
+
+gi(t) ∗ gj (t) ∗ ≤ L2.
+
+Further, xi(t) ∈ Ft−1 and y(t) ∈ Ft−1 by assumption for j ∈ [n] and s ≤ t − 1, so
+
+E gi(t), xi(t) − y(t) ≤ E gi(t) ∗ xi(t) − y(t) = E (E[ gi(t) ∗ | Ft−1] xi(t) − y(t) ) ≤ LE xi(t) − y(t) .
+
+Recalling that xi(t) − y(t) ≤ α(t) z¯(t) − zi(t) ∗, we proceed by putting expectations around the norm terms in (26) and (28) to see that
+
+1 α(t)
+
+E
+
+y(t) − xi(t)
+
+≤E
+
+t−1
+z¯(t) − zi(t) ∗ ≤ L
+s=1
+
+√
+
+[Φ(t − 1, s)]i − 11/n
+
+1
+
++
+
+2L
+
+≤
+
+L
+
+log(T n) 1 − σ2(P )
+
++ 3L.
+
+Coupled with the above arguments, we can bound the expectation of (44) by
+
+E
+
+T
+f (y(t)) − f (x∗)
+t=1
+
+≤
+
+1 α(T
+
+)
+
+ψ(x∗
+
+)
+
++
+
+L2 2
+
+T t=1
+
+α(t
+
+− 1) +
+
+√
+
+2L2
+
+log(T n) 1 − σ2(P )
+
++
+
+6L2
+
+T
+α(t)
+t=1
+
++
+
+1 n
+
+T t=1
+
+n
+E[
+i=1
+
+gi(t) − gi(t), xi(t) − x∗
+
+].
+
+(46)
+
+27
+
+Taking the expectation for the ﬁnal term in the bound (46), we recall that xi(t) ∈ Ft−1, so
+
+E [ gi(t) − gi(t), xi(t) − x∗ ] = E [E [ gi(t) − gi(t), xi(t) − x∗ | Ft−1]]
+
+= E [ E(gi(t) − gi(t) | Ft−1), xi(t) − x∗ ] = 0,
+
+(47)
+
+which completes the proof of the ﬁrst statement of the theorem. To show that the statement holds with high-probability when X is compact and gi(t) ∗ ≤ L,
+it is suﬃcient to establish that the sequence gi(t) − gi(t), xi(t) − x∗ is a bounded martingale, and then apply Azuma’s inequality [Azu67]. (Here we are exploiting the fact that under compactness and bounded norm conditions, our previous bounds on terms in the decomposition (45) now hold for the analogous terms in the decomposition (46) without taking expectations.)
+By assumption on the compactness of X and the Lipschitz assumptions on fi, we have
+gi(t) − gi(t), xi(t) − x∗ ≤ gi(t) − gi(t) ∗ xi(t) − x∗ ≤ 2LR.
+
+Recalling (47), we conclude that the last sum in the decomposition (46) is a bounded diﬀerence martingale, and Azuma’s inequality implies that
+
+P
+
+Tn
+gi(t) − gi(t), xi(t) − x∗
+t=1 i=1
+
+≥ǫ
+
+≤ exp
+
+−
+
+ǫ2 16T n2L2R2
+
+.
+
+Dividing by T and setting the probability above equal to δ, we obtain that with probability at least 1 − δ,
+
+1T n nT t=1 i=1
+
+gi(t) − gi(t), xi(t) − x∗
+
+≤ 4LR
+
+log T
+
+1 δ
+
+.
+
+The second statement of the theorem is now obtained by appealing to Lemma 3. By convexity, we
+
+have
+
+f (xi(T ))
+
+≤
+
+1 T
+
+T t=1
+
+f (xi(t)),
+
+thereby
+
+completing
+
+the
+
+proof.
+
+Proving the last statement of the theorem—the concentration result with uncorrelated noise
+
+at each node—requires a martingale extension of Bernstein’s inequality [Fre75]. Indeed, one form
+
+of Freedman’s inequality states that if X1, . . . , XT is a martingale diﬀerence sequence, |Xi| ≤ B
+
+uniformly, and V ≥
+
+T t=1
+
+Var(Xt
+
+|
+
+Ft−1),
+
+then
+
+for
+
+any
+
+v,
+
+ǫ
+
+>
+
+0,
+
+P
+
+T
+Xt ≥ ǫ and V ≤ v
+
+≤ exp
+
+−
+
+2v
+
+ǫ2 + 2Bǫ/3
+
+.
+
+t=1
+
+To
+
+extend
+
+the
+
+above
+
+bound
+
+to
+
+our
+
+setting,
+
+we
+
+recall
+
+that
+
+1 n
+
+n i=1
+
+gi(t) − gi(t), xi(t) − x∗
+
+is Mar-
+
+tingale diﬀerence sequence uniformly bounded by 2LR. Further, since the expectation is zero, we
+
+28
+
+have
+
+Var
+
+1n n
+
+gi(t) − gi(t), xi(t) − x∗ | Ft−1
+
+i=1
+
+=E
+
+1 n2
+
+n i,j
+
+gi(t) − gi(t), xi(t) − x∗
+
+gj (t) − gj (t), xj (t) − x∗ | Ft−1
+
+=
+
+1 n2 E
+
+n i=1
+
+gi(t) − gi(t), xi(t) − x∗ 2 | Ft−1
+
+(48)
+
+≤
+
+1 n2
+
+n
+
+4L2R2
+
+=
+
+4L2R2 n
+
+.
+
+i=1
+
+The decorrelation equality in (48) follows by our assumption that gi(t) and gj(t) are uncorrelated given Ft−1, and that xi(t), gi(t), and x∗ ∈ Ft−1. Substituting 4T L2R2/n as an upper bound for the variance in Freedman’s inequality, we have
+
+P
+
+1T n n t=1 i=1
+
+gi(t) − gi(t), xi(t) − x∗
+
+≥ǫ
+
+≤ exp
+
+−
+
+8T
+
+ǫ2 L2R2/n +
+
+8LRǫ/3
+
+.
+
+To ﬁnd a δ so that exp(·) term is less than or equal to δ, we solve
+
+δ ≥ exp
+
+−
+
+8L2
+
+ǫ2 R2/n +
+
+8LRǫ/3
+
+or
+
+ǫ2
+
+−
+
+ǫ
+
+8LR log 3
+
+1 δ
+
+−
+
+8T L2R2 log n
+
+1 δ
+
+≥ 0.
+
+(49)
+
+Solving the above quadratic in ǫ, we have equality with zero for
+
+ǫ
+
+=
+
+(8/3)LR log
+
+1 δ
+
+±
+
+(8/3)2 L2 R2
+
+log2
+
+1 δ
+
++
+
+(32/n)T
+
+L2R2
+
+log
+
+1 δ
+
+2
+
+In
+
+particular,
+
+noting
+
+that
+
+√ a
+
++
+
+b
+
+≤
+
+√a
+
++
+
+√ b,
+
+it
+
+is
+
+suﬃcient
+
+that
+
+ǫ
+
+≥
+
+4 3
+
+LR
+
+log
+
+1 δ
+
++
+
+√
+
+6 3
+
+LR
+
+log
+
+1 δ
+
++
+
+√ 2 2LR
+
+T n
+
+log
+
+1 δ
+
+for the inequality in (49) to be satisﬁed. Thus with probability at least 1 − δ,
+
+1T n
+
+n
+
+gi(t) − gi(t), xi(t) − x∗
+
+<
+
+3LR
+
+log
+
+1 δ
+
++
+
+4LR
+
+T n
+
+log
+
+1 δ
+
+.
+
+t=1 i=1
+
+Dividing by T completes the proof of the last statement of Theorem 4.
+
+9 Simulations
+In this section, we report experimental results on the network scaling behavior of the distributed dual averaging algorithm as a function of the graph structure and number of processors n. These results illustrate the excellent agreement of the empirical behavior with our theoretical predictions.
+29
+
+100 n = 225
+n = 400
+n = 625
+
+10−1
+
+T (ǫ; 400)
+
+T (ǫ; 625)
+
+f(x(t)) - f(x∗)
+
+10−2
+
+T (ǫ; 225)
+
+0
+
+200 400 600 800 1000 1200
+
+Iterations
+
+Figure 2. Plot of the function error versus the number of iterations for a grid graph. Each curve corresponds to a grid with a diﬀerent number of nodes (n ∈ {225, 400, 600}. As expected, larger graphs require more iterations to reach a pre-speciﬁed tolerance ǫ > 0, as deﬁned by the iteration number T (ǫ; n). The network scaling problem is to determine how T (ǫ; n) scales as a function of n.
+
+For all experiments reported here, we consider distributed minimization of a sum of hinge loss
+functions; it is this optimization problem that underlies the widely-used support vector machine
+method for classiﬁcation [CV95]. In a classiﬁcation problem, we are given n pairs of the form (bi, yi) ∈ Rd × {−1, +1}, where bi ∈ Rd corresponds to a feature vector and yi ∈ {−1, +1} is the associated label. The goal is to use these samples to estimate a linear classiﬁer, meaning a function of the form b → sign b, x based on some weight vector x ∈ Rd. In methods based on support
+vector machines, the weight vector is chosen by minimizing a sum of hinge loss functions associated
+with each pair (bi, yi). In particular, given the shorthand notation [c]+ : = max{0, c}, the hinge loss associated with a linear classiﬁer based on x is given by fi(x) = [1 − yi bi, x ]+. The global objective is a sum of n such terms, namely
+
+f (x)
+
+:=
+
+1 n
+
+n
+
+[1 − yi bi, x ]+ .
+
+(50)
+
+i=1
+
+Setting L = maxi bi 2, we note that f is L-Lipschitz and non-smooth at any point with bi, x = yi. It is common to impose some type of quadratic constraint on the minimization problem (50), and for the simulations considered here, we set X = {x ∈ Rd | x 2 ≤ 5}. For a given graph size n, we form a random instance of a SVM classiﬁcation problem as follows. For each i = 1, 2, . . . , n, we ﬁrst draw a random vector bi ∈ Rd from the uniform distribution over the unit sphere. We then randomly generate a random Gaussian vector w ∼ N (0, Id×d), and then let ai = sign( w, bi )bi, randomly ﬂipping the sign of 5% of the ai. Note that these choices yield a function f that is Lipschitz with parameter L = 1. Although this is a speciﬁc ensemble of problems, we have observed
+qualitatively similar behavior for other problem ensembles. In order to study the eﬀect of graph
+size and topology, we perform simulations with three diﬀerent graph structures, namely cycles,
+grids, and random 5-regular expanders [FKS89], with the number of nodes n ranging from 100 to
+900. In all cases, we use the optimal setting of the step size α speciﬁed in Theorem 2 and Corollary 1.
+
+30
+
+Steps to ε Steps to ε Steps to ε
+
+1400
+
+500
+
+120
+
+1200
+
+450
+
+110
+
+400 1000
+
+350
+
+100
+
+800
+
+300
+
+90
+
+600 250
+
+400
+
+200
+
+80
+
+200 0
+
+150
+
+200 400 600 800 1000
+
+0
+
+Nodes n
+
+70
+
+200
+
+400
+
+600
+
+800 1000
+
+0
+
+Nodes n
+
+200
+
+400
+
+600
+
+800 1000
+
+Nodes n
+
+(a)
+
+(b)
+
+(c)
+
+Figure 3. Each plot shows the number of iterations required to reach a ﬁxed accuracy ǫ (vertical axis) versus the network size n (horizontal axis). Each panel shows the same plot for a diﬀerent graph topology: (a) single cycle; (b) two-dimensional grid; and (c) bounded degree expander. Step sizes were chosen according to the spectral gap, and dotted lines show predictions of Corollary 1.
+
+Figure 2 provides plots of the function error maxi[f (xi(T ) − f (x∗)] versus the number of iterations for grid graphs with a varying number of nodes n ∈ {225, 400, 625}. In addition to demonstrating convergence, these plots also show how the convergence time scales as a function of the graph size n. In particular, for a given class of optimization problems, deﬁne TG(ǫ; n) to be the number of iterations required to obtain ǫ-accurate solution for a graph G with n nodes. As shown in Figure 2, for any ﬁxed ǫ > 0, the function TG(ǫ; n) shifts to the right as n is increased, and the goal of network scaling analysis is to gain a precise understanding of this shifting.
+As discussed following Corollary 1, for cycles, grids, and expanders, we have the following upper bounds on the quantity TG(ǫ; n):
+
+Tcycle(ǫ; n) = O
+
+n2 ǫ2
+
+,
+
+Tgrid(ǫ; n) = O
+
+n ǫ2
+
+,
+
+and Texpander(ǫ; n) = O
+
+1 ǫ2
+
+.
+
+(51)
+
+In Figure 3, we compare these theoretical predictions with the actual behavior of dual subgradient averaging. Each panel shows the function TG(ǫ; n) versus the graph size n for the ﬁxed value ǫ = 0.1; the three diﬀerent panels correspond to diﬀerent graph types: cycles (a), grids (b) and expanders (c). In each panel, each point on the blue curve is the average of 20 trials, and the bars show standard errors. For comparison, the dotted black line shows the theoretical prediction (51). Note that the agreement between the empirical behavior and theoretical predictions is excellent in all cases. In particular, panel (a) exhibits the quadratic scaling predicted for the cycle, panel (b) exhibits the the linear scaling expected for the grid, and panel (c) shows that expander graphs have the desirable property of having constant network scaling.
+
+Though our focus in this paper is mostly a theoretical one, in our ﬁnal set of experiments we compare the distributed dual averaging method (DDA) that we present to the Markov incremental gradient descent (MIGD) method [JRJ09] and the distributed projected gradient method [RNV10], which seem to have the sharpest convergence rates currently in the literature. In Figure 4, we plot the quantity TG(ǫ; n) versus graph size n for DDA and MIGD on grid and expander graphs. We use the optimal stepsize α(t) suggested by the analyses for each method. (We do not plot results for the distributed projected gradient method [RNV10] because the optimal choice of stepsize according
+
+31
+
+2500 2000
+
+DDA MIGD
+
+1500
+
+3500 3000 2500 2000
+
+DDA MIGD
+
+Steps to ε Steps to ε
+
+1000 500
+
+1500 1000
+500
+
+0
+
+0
+
+200 400 600 800 1000
+
+Nodes n
+
+(a)
+
+0
+
+0
+
+200 400 600 800 1000
+
+Nodes n
+
+(b)
+
+Figure 4. Each plot shows the number of iterations required to reach a ﬁxed accuracy ǫ (vertical axis) versus network size n (horizontal axis) for distributed dual averaging (DDA) and Markov incremental gradient descent (MIGD) [JRJ09]. The panels show the same plot for diﬀerent graph topologies: (a) two-dimensional grid, (b) bounded degree expander.
+
+to the analysis therein results in such slow convergence that it does not ﬁt on the plots.) Fig. 4 makes it clear that—especially on graphs with good connectivity properties such as the expander in Fig. 4(b)—the dual averaging algorithm gives improved performance.
+
+10 Conclusions and Discussion
+In this paper, we proposed and analyzed a distributed dual averaging algorithm for minimizing the sum of local convex functions over a network. It is computationally eﬃcient, and we provided a sharp analysis of its convergence behavior as a function of the properties of the optimization functions and the underlying network topology. Our analysis demonstrates a close connection between convergence rates and mixing times of random walks on the underlying graph; such a connection is natural given the local and graph-constrained nature of our updates. In addition to analysis of deterministic updates, our results also include the case of stochastic communication protocols, for instance when communication occurs only along a random subset of the edges at each round. Such extensions allow for the design of protocols that provide interesting tradeoﬀs between the amount of communication and convergence rates. We also demonstrate that our algorithm is robust to noise by providing an analysis for the case of stochastic optimization with noisy gradients. We conﬁrmed the sharpness of our theoretical predictions by implementation and simulation of our algorithm.
+There are several interesting open questions that remain to be explored. For instance, it would be interesting to analyze the convergence properties of other kinds of network-based optimization problems, by combining local information in diﬀerent structures. It would also be of interest to study what other optimization procedures from the standard setting can be converted into eﬃcient distributed algorithms to better exploit problem structure when possible.
+32
+
+Acknowledgments
+AA was supported by a Microsoft Research Fellowship and JCD was supported by the National Defense Science and Engineering Graduate Fellowship (NDSEG) Program. In addition, MJW was partially supported by NSF-CAREER-0545862 and AFOSR-09NL184. We thank John Tsitsiklis for a careful reading of the paper and providing helpful comments and several anonymous reviewers for useful feedback.
+
+A The Dual Averaging Algorithm
+
+In this section, we give a simple convergence proof for the basic (non-distributed) dual averaging algorithm (3). In particular, we recall the updates
+
+z(t + 1) = z(t) + g(t) and x(t + 1) = argmin
+x∈X
+
+z(t + 1), x
+
++
+
+1 α(t)
+
+ψ(x)
+
+.
+
+Recall our assumptions without any loss of generality that 0 ∈ X , ψ ≥ 0 and ψ(0) = 0. Let
+
+I (x ∈ X ) be the {0, ∞}-valued indicator function for membership in X , and for each α > 0, let ψα∗
+
+denote
+
+the
+
+conjugate
+
+dual
+
+of
+
+the
+
+convex
+
+function
+
+1 α
+
+ψ(x)
+
++
+
+I
+
+(x
+
+∈
+
+X
+
+).
+
+By
+
+deﬁnition,
+
+the
+
+conjugate
+
+takes the form
+
+ψα∗ (z) = sup
+x∈X
+
+z, x
+
+−
+
+1 α
+
+ψ(x)
+
+= sup
+x
+
+z, x
+
+−
+
+1 α
+
+ψ(x)
+
+−
+
+I
+
+(x
+
+∈
+
+X
+
+)
+
+.
+
+(52)
+
+The deﬁnition (4) of the projection ΠψX shows that the supremum (52) is uniquely attained by
+
+ΠψX (−z, α). Moreover, for any ﬁxed z, we note that at x = 0,
+
+z, x
+
+−
+
+1 α
+
+ψ(x)
+
+−
+
+I
+
+(x
+
+∈
+
+X)
+
+=
+
+0.
+
+Thus,
+
+we can restrict the supremum in (52) to the set
+
+x
+
+|
+
+1 α
+
+ψ(x)
+
++
+
+I
+
+(x
+
+∈
+
+X
+
+)
+
+−
+
+z, x
+
+≤0
+
+=X ∩
+
+x|
+
+1 α
+
+ψ(x)
+
+−
+
+z, x
+
+≤0
+
+,
+
+which is compact since X is closed and ψ is strongly convex. Thus, since the supremum is uniquely attained and z, x is diﬀerentiable in z, ∇ψα∗ (−z) = ΠψX (z, α) [HUL96a, Theorem 4.4.2].
+This fact has two important consequences. First, since the projection is Lipschitz-continuous
+(see Lemma 5), we have the bound
+
+∇ψα∗ (−z) − ∇ψα∗ (−z − g) = ΠψX (z, α) − ΠψX (z + g, α) ≤ α g ∗ .
+
+Consequently, an integration argument (e.g., [Nes04, Lemma 1.2.3]) yields the upper bound
+
+ψα∗ (−z − g) ≤ ψα∗ (−z) −
+
+g, ∇ψα∗ (−z)
+
++
+
+1 2
+
+α
+
+g
+
+2 ∗
+
+.
+
+(53)
+
+The second consequence is that we have
+
+x(t) = ∇ψα∗(t−1)(−z(t)) = ΠX (z(t), α(t − 1)).
+
+33
+
+A.1 Proof of Lemma 2
+To bound the sequence of inner products, we note that for any x∗ ∈ X , we have
+
+T
+
+− g(t), x∗ ≤ sup
+
+t=1
+
+x∈X
+
+T
+−
+t=1
+
+g(t), x
+
+−
+
+1 α(T
+
+)
+
+ψ(x)
+
++
+
+1 α(T
+
+) ψ(x∗)
+
+=
+
+ψα∗(T )(−z(T
+
++
+
+1))
+
++
+
+1 α(T
+
+)
+
+ψ(x∗
+
+).
+
+(54)
+
+By deﬁnition of the conjugate function ψα∗ , whenever we have α(t) ≤ α(t − 1), then we are guaranteed that ψα∗(t)(z) ≤ ψα∗(t−1)(z) for all z ∈ Rd. Thus, using the upper bound (53) and the relations x(t) = ∇ψα∗(t−1)(−z(t)) and z(t + 1) = z(t) + g(t), we obtain
+
+ψα∗(t)(−z(t + 1)) ≤ ψα∗(t−1)(−z(t + 1))
+
+= ψα∗(t−1)(−z(t) − g(t))
+
+≤ ψα∗(t−1)(−z(t)) −
+
+g(t), x(t)
+
++
+
+1 2
+
+α(t
+
+−
+
+1)
+
+g(t)
+
+2 ∗
+
+.
+
+Rearranging terms yields
+
+g(t), x(t)
+
+≤
+
+ψα∗ (t−1) (−z (t))
+
+−
+
+ψα∗ (t) (−z (t
+
++
+
+1))
+
++
+
+1 2
+
+α(t
+
+−
+
+1)
+
+g(t)
+
+2 ∗
+
+.
+
+(55)
+
+Finally, we combine the upper bound on g(t), x(t) from equation (55) with the earlier bound (54),
+
+thereby obtaining that for any x∗ ∈ X , the sum S(T ) =
+
+T t=1
+
+g(t), x(t) − x∗
+
+is upper bounded as
+
+T
+S(T ) ≤
+
+g(t), x(t)
+
++
+
+ψα∗(T )(−z(T
+
++
+
+1))
+
++
+
+1 ψ(x∗) α(T )
+
+t=1
+
+≤
+
+1 2
+
+T
+
+α(t − 1)
+
+g(t)
+
+2 ∗
+
++
+
+T
+
+ψα∗(t−1)(−z(t)) − ψα∗(t)(−z(t + 1))
+
++
+
+ψα∗(T )(−z(T
+
++
+
+1))
+
++
+
+1 α(T
+
+)
+
+ψ(x∗)
+
+t=1
+
+t=1
+
+=
+
+1 2
+
+T t=1
+
+α(t
+
+−
+
+1)
+
+g(t)
+
+2 ∗
+
++
+
+1 α(T
+
+)
+
+ψ(x∗).
+
+The last line exploited the facts that z(1) = 0 and ψα∗ (0) = 0. This completes the proof of the claim.
+
+A.2 Proof of Lemma 3
+
+Via the L-Lipschitz continuity of the fi, we can write
+
+T
+
+T
+
+T
+
+f (xi(t)) − f (x∗) = f (y(t)) − f (x∗) + f (xi(t)) − f (y(t))
+
+t=1
+
+t=1
+
+t=1
+
+T
+
+T
+
+≤ f (y(t)) − f (x∗) + L xi(t) − y(t) .
+
+t=1
+
+t=1
+
+34
+
+For the second bound, we again use the L-Lipschitz continuity of the fi and the triangle inequality,
+
+f (xi(T )) − f (x∗) = f (y(T )) − f (x∗) + f (xi(T )) − f (y(T ))
+
+≤ f (y(T )) − f (x∗) + L
+
+xi(T ) − y(T )
+
+≤
+
+f (y(T ))
+
+−
+
+f (x∗)
+
++
+
+L T
+
+T
+
+xi(t) − y(t) .
+
+t=1
+
+Lipschitz-continuity of the projection (Lemma 5) shows that xi(t) − y(t) ≤ α(t) z¯(t) − zi(t) ∗ which gives both the desired results.
+
+A.3 Lipschitz continuity of projections
+The following lemma on the Lipschitz-continuity of the projection operator is well-known, but we state and prove it for completeness.
+Lemma 5. For an arbitrary pair u, v ∈ Rd, we have
+
+ΠψX (u, α) − ΠψX (v, α) ≤ α u − v ∗ .
+
+Proof Lemma 5 is essentially an immediate consequence of the relationship between strong-
+convexity and Lipschitz continuity of the gradient for conjugate functions [HUL96b, Theorem X.4.2.1], but we give a short proof for completeness. For an arbitrary pair u, v ∈ Rd, denote w = ΠψX (u, α) and x = ΠψX (v, α). By the ﬁrst-order optimality conditions for convex minimization, for any y ∈ X , we have
+
+u
+
++
+
+1 α
+
+∇ψ(w),
+
+y
+
+−
+
+w
+
+≥0
+
+and
+
+v
+
++
+
+1 α
+
+∇ψ(x),
+
+y
+
+−
+
+x
+
+≥ 0.
+
+Setting y = x and y = w in these two inequalities (respectively) yields
+
+αu + ∇ψ(w), x − w ≥ 0 and αv + ∇ψ(x), w − x ≥ 0.
+
+Adding the above two inequalities, we obtain the bound
+
+∇ψ(w) − ∇ψ(x), w − x ≤ α u − v, x − w ≤ α v1 − v2 ∗ w − x .
+
+(56)
+
+On the other
+
+hand the strong convexity of
+
+ψ
+
+implies that ψ(w)
+
+≥
+
+ψ(x) +
+
+ψ(x), w − x
+
++
+
+1 2
+
+x − w 2,
+
+with an analogous bound with the roles of x and w exchanged. Some algebra then leads to
+
+∇ψ(w) − ∇ψ(x), w − x ≥ w − x 2 ,
+
+which, when combined with (56), gives the desired result.
+
+35
+
+B Background on stochastic matrices
+
+In this section, we brieﬂy review some well-known properties of stochastic matrices; we refer the
+
+reader to Chapter 8 of Horn and Johnson [HJ85] for additional detail. For an n × n matrix A, we
+
+let its singular values be σ1(A) ≥ σ2(A) ≥ · · · ≥ σn(A), and for a real symmetric A, we deﬁne
+
+the eigenvalues λ1(A) ≥ λ2(A) ≥ · · · ≥ λn(A). Let 11 be the all ones vector. In our setting, P = [p1 · · · pn] ∈ Rn×n is a doubly stochastic matrix, so that P 11 = 11 and 11T P = 11T . We have σ1(P ) = 1, λ1(P T P ) = 1, and 1 − σ2(P ) is the spectral gap, which is known to determine the
+
+mixing properties of the Markov chain induced by P [LPW08].
+
+In order to establish the connection between mixing and spectral gap, deﬁne the uniform matrix
+
+F
+
+:=
+
+1 n
+
+1111T
+
+.
+
+Observe that F
+
+is idempotent (F 2 = F ), and moreover it satisﬁes P F = F P = F .
+
+By construction, the eigenspectrum of P − F is equal to that of P except that the largest eigenvalue
+
+1 is removed. Similarly, the eigenspectrum of (P − F )T (P − F ) = P T P − F T P − P T F + F T F =
+
+P T P − F T F is identical to that of P T P but with λ1(P T P ) = 1 removed. Given these properties, a simple calculation yields that for any integer t = 1, 2, . . ., we have (P −F )t = P t −F . Consequently,
+
+for any x ∈ Rn, we have
+
+P tx − F x 2 = (P − F )tx 2 ≤ σ1(P − F ) (P − F )t−1x 2 ≤ · · · ≤ σ2(P )t x 2.
+
+If we take x = ei, denoting a canonical basis vector for i = 1, . . . , n, then we see that σ2(P )t. Taking x ∈ ∆n, the n-dimensional simplex, gives
+
+Pt −L ∞ ≤
+
+P tx − 11/n
+
+TV
+
+=
+
+1 2
+
+P tx − 11/n
+
+1≤
+
+1 2
+
+√ n
+
+P tx − 11/n
+
+2
+
+≤
+
+1 2
+
+σ2
+
+(P
+
+)t√n,
+
+which establishes the bound (23). (The √n factor in the bound is standard in the Markov chain
+
+literature, e.g., [DS91, Proposition 3].)
+
+C Eigenvalues of paths
+
+Let G be a graph and S be a subset of the nodes in the graph. Let E(S, Sc) denote the set of edges crossing between S and Sc, and let the volume of S be the sum of the degrees of the nodes in S,
+that is, vol(S) = i∈S δi. The Cheeger constant of a graph G is deﬁned as
+
+hG
+
+:
+
+=
+
+min
+S⊂V
+
+card(E(S, Sc)) min{vol(S), vol(Sc)}
+
+.
+
+(57)
+
+If
+
+L
+
+is
+
+the
+
+Laplacian
+
+of
+
+G,
+
+then
+
+2hG
+
+≥
+
+λn−1(L)
+
+>
+
+1 2
+
+h2G
+
+(e.g.,
+
+see
+
+Lemma
+
+2.1
+
+and
+
+Theorem
+
+2.2
+
+in
+
+Chung [Chu98]).
+
+√ Lemma 6. Let G be a k-connected path with n nodes and k ≤ n. Then its normalized graph Laplacian L satisﬁes λn−1(L) = Θ(k2/n2).
+
+Proof We invoke Theorem 4.13 in Chung [Chu98] to conclude that λn−1(L) = O(k2/n2), since G is a subgraph of the k-connected cycle. It thus suﬃces to prove that the Cheeger constant is lower bounded as hG = Ω(k/n).
+Let S be the set of nodes achieving the minimum in the deﬁnition (57). To make the rest of the proof easier, assume that the degree of each node is 2k. (We may do so without loss of generality,
+
+36
+
+since it only has the eﬀect of increasing vol(S) and vol(Sc) in the Cheeger constant calculation, and
+
+so any Cheeger constant calculated under this assumption lower bounds the true Cheeger constant.)
+
+First, note that one of the nodes in S must be against the end of the path—if not, shifting the
+
+nodes in S in one direction (taking into account that we must pick the direction in which more
+
+nodes are brought near the end of the path) can only decrease card(E(S, Sc)). Now we show that
+
+all of Since
+
+the no√des k ≤ n,
+
+in S must be directly there must be a pair
+
+adjacent to one of nodes in S
+
+another. Suppose the with a distance of at
+
+nodes are not adjacent. least k. Let i ∈ Sc be
+
+between those two nodes, and let Sℓ denote the nodes to the left of i and Sr the nodes to the
+
+right. Collapsing all the nodes in Sr to the rightmost end of the path and all the nodes in Sℓ to the leftmost end can only decrease card(E(S, Sc)). If |S| ≥ k, then at least one of the sets Sr and Sℓ shares k(k − 1)/4 edges with Sc. Otherwise, if |S| < k, then card(E(S, Sc)) ≥ k and vol(S) ≤ k2,
+
+so card(E(S, Sc))/ vol(S) ≥ 1/k. Under the assumption k2 ≤ n, we have 1/k ≤ k/n, from which
+
+the result follows.
+
+D Composite Objectives
+
+In this section, we show how to generalize the dual averaging algorithm to incorporate composite objectives, speciﬁcally those of the form f +ϕ for known ϕ. Though it is possible to perform similar derivations to those in Lemma 2, for brevity we refer to recent work of Xiao [Xia10]. Nonetheless, the algorithm is conceptually very similar to the dual averaging algorithm (updates (5a) and (5b)), and equally as simple to write. We assume that ϕ is closed convex and non-negative, and X is closed. We deﬁne the composite projection operator ΠtX as
+
+ΠtX (z) = argmin
+x∈X
+
+z, x
+
++
+
+tϕ(x)
+
++
+
+1 α(t)
+
+ψ(x)
+
+.
+
+(58)
+
+The mapping ΠtX is α(t)-Lipschitz with respect to · and · ∗, that is,
+
+ΠtX (z1) − ΠtX (z2) ≤ α(t) z1 − z2 ∗ .
+
+(59)
+
+As in Lemma 5, (59) is a consequence of the fact that the conjugate dual of a 1/α(t)-strongly
+
+convex function has α(t)-Lipschitz continuous gradient with respect to the associated dual norm,
+
+and
+
+the
+
+gradient
+
+of
+
+the
+
+conjugate
+
+of
+
+tϕ(x)
+
++
+
+1 α(t)
+
+ψ(x)
+
+is
+
+simply
+
+ΠtX
+
+(z)
+
+[HUL96b,
+
+Theorem
+
+X.4.2.1].
+
+The distributed algorithm based on the update (58) is essentially identical to the dual averaging
+
+algorithm discussed in the main body of the paper. Each agent i maintains the gradient vector
+
+n
+
+zi(t + 1) = pij(t)zj(t) − gi(t) where Egi(t) ∈ ∂fi(xi(t)).
+
+(60)
+
+j=1
+
+The update to xi(t + 1) is then
+
+xi(t + 1) = ΠtX (−zi(t + 1)).
+
+(61)
+
+As
+
+in
+
+(16),
+
+we
+
+have
+
+z¯(t
+
++
+
+1)
+
+=
+
+z¯(t)
+
+−
+
+1 n
+
+n i=1
+
+gj
+
+(t).
+
+The following proposition, a simpliﬁcation
+
+of [Xia10, Section B.2], allows us to give a convergence guarantee for the algorithm described by
+
+(60) and (61).
+
+37
+
+Proposition 2. Let α(t) be a decreasing sequence and g(t) ∈ Rd be an arbitrary sequence of vectors.
+
+If x(t + 1) = ΠtX (
+
+t τ =1
+
+g(t)),
+
+then
+
+for
+
+any
+
+x∗
+
+∈
+
+X,
+
+T t=1
+
+g(t), x(t) − x∗
+
++
+
+ϕ(x(t))
+
+−
+
+ϕ(x∗)
+
+≤
+
+1 α(T
+
+)
+
+ψ(x∗
+
+)
+
++
+
+1 2
+
+T t=1
+
+α(t
+
+−
+
+1)
+
+g(t)
+
+2 ∗
+
+.
+
+The above proposition, combined with the techniques used to derive Theorem 1, allow us to
+easily prove convergence of distributed composite-objective dual averaging. As earlier, let y(t) = ΠtX (−z¯(t)), and assume that the fi are L-Lipschitz with respect to · . Then as in (18), (19), and (20), for any x∗ ∈ X , we immediately have
+
+T
+f (y(t)) + ϕ(y(t)) − f (x∗) − ϕ(x∗)
+
+t=1
+
+≤
+
+T t=1
+
+1 n
+
+n
+gi(t), y(t) − x∗
+i=1
+
++
+
+T t=1
+
+ϕ(y(t))
+
+−
+
+ϕ(x∗)
+
++
+
+T t=1
+
+n i=1
+
+2L n
+
+y(t) − xi(t)
+
+.
+
+By deﬁnition of y(t), we see that Proposition 2 bounds the above by
+
+1 α(T
+
+)
+
+ψ(x∗)
+
++
+
+1 2
+
+T t=1
+
+α(t
+
+−
+
+1)L2
+
++
+
+T t=1
+
+n i=1
+
+2L n
+
+y(t) − xi(t)
+
+.
+
+Finally, we use the fact that the mapping ΠtX is α(t)-Lipschitz to see that for the distributed composite-objective projection algorithm of (60) and (61),
+
+T
+
+f (y(t))+ϕ(y(t))−f (x∗)−ϕ(x∗)
+
+≤
+
+1 α(T
+
+)
+
+ψ(x∗)+
+
+1 2
+
+T
+
+α(t−1)L2
+
++
+
+2L n
+
+T
+
+α(t)
+
+n
+
+z¯(t) − zi(t) ∗ .
+
+t=1
+
+t=1
+
+t=1
+
+i=1
+
+(62)
+
+Any of the techniques in the prequel can be used to bound (62).
+
+References
+
+[Alo86] N. Alon, Eigenvalues and expanders, Combinatorica 6 (1986), 83–96.
+
+[Azu67] K. Azuma, Weighted sums of certain dependent random variables, Tohoku Mathematical Journal 68 (1967), 357–367.
+
+[BDTV10] F. B´en´ezit, A. Dimakis, P. Thiran, and M. Vetterli, Order-optimal consensus through randomized path averaging, IEEE Transactions on Information Theory 56 (2010), no. 10, 5150–5167.
+
+[Ber99] D.P. Bertsekas, Nonlinear programming, Athena Scientiﬁc, 1999.
+
+[BGPS06] S. Boyd, A. Ghosh, B. Prabhakar, and D. Shah, Randomized gossip algorithms, IEEE Transactions on Information Theory 52 (2006), no. 6, 2508–2530.
+
+[BT89]
+
+D. P. Bertsekas and J. N. Tsitsiklis, Parallel and distributed computation: numerical methods, Prentice-Hall, Inc., 1989.
+
+38
+
+[Chu98] F.R.K. Chung, Spectral graph theory, AMS, 1998.
+
+[CV95]
+
+C. Cortes and V. Vapnik, Support-vector networks, Machine Learning 20 (1995), no. 3, 273–297.
+
+[DS91]
+
+P. Diaconis and D. Stroock, Geometric bounds for eigenvalues of Markov chains, The Annals of Probability 1 (1991), no. 1, 36–61.
+
+[DSW08] A. G. Dimakis, A. Sarwate, and M. J. Wainwright, Geographic gossip: Eﬃcient averaging for sensor networks, IEEE Transactions on Signal Processing 53 (2008), 1205–1216.
+
+[DW60] G. B. Dantzig and P. Wolfe, Decomposition principle for linear programs, Operations Research 8 (1960), 101–111.
+
+[FKS89]
+
+J. Friedman, J. Kahn, and E. Szemer´edi, On the second eigenvalue of random regular graphs, Proceedings of the Twenty First Annual ACM Symposium on Theory of Computing, ACM, 1989, pp. 587–598.
+
+[Fre75]
+
+D. A. Freedman, On tail probabilities for martingales, The Annals of Probability 3 (1975), no. 1, 100–118.
+
+[GK00]
+
+P. Gupta and P. Kumar, The capacity of wireless networks, IEEE Transactions on Information Theory 46 (2000), no. 2, 388–404.
+
+[Gra06] R. Gray, Toeplitz and circulant matrices: A review, Foundations and Trends in Communications and Information Theory 2 (2006), no. 3, 155–239.
+
+[HJ85] R. A. Horn and C. R. Johnson, Matrix Analysis, Cambridge University Press, 1985.
+
+[HUL96a] J. Hiriart-Urruty and C. Lemar´echal, Convex Analysis and Minimization Algorithms I, Springer, 1996.
+
+[HUL96b]
+
+, Convex Analysis and Minimization Algorithms II, Springer, 1996.
+
+[JRJ09]
+
+B. Johansson, M. Rabi, and M. Johansson, A randomized incremental subgradient method for distributed optimization in networked systems, SIAM Journal on Optimization 20 (2009), no. 3, 1157–1170.
+
+[KV05]
+
+A. Kalai and S. Vempala, Eﬃcient algorithms for online decision problems, Journal of Computer and System Sciences 71 (2005), no. 3, 291–307.
+
+[LO09]
+
+I. Lobel and A. Ozdaglar, Distributed subgradient methods over random networks, Tech. Report 2800, MIT LIDS, 2009.
+
+[LOT03] V. Lesser, C. Ortiz, and M. Tambe (eds.), Distributed Sensor Networks: A Multiagent Perspective, vol. 9, Kluwer Academic Publishers, 2003.
+
+[LPW08] D. Levin, Y. Peres, and E. Wilmer, Markov Chains and Mixing Times, American Mathematical Society, 2008.
+
+[LWHS02] D. Li, K. Wong, Y. Hu, and A. Sayeed, Detection, classiﬁcation and tracking of targets in distributed sensor networks, IEEE Signal Processing Magazine, 2002, pp. 17–29.
+
+39
+
+[MARS10] D. Mosk-Aoyama, T. Roughgarden, and D. Shah, Fully distributed algorithms for convex optimization problems, SIAM Journal on Optimization 20 (2010), no. 6, 3260–3279.
+
+[MHM10] R. McDonald, K. Hall, and G. Mann, Distributed training strategies for the structured perceptron, North American Chapter of the Association for Computational Linguistics (NAACL), 2010.
+
+[NB01]
+
+A. Nedic and D. P. Bertsekas, Incremental subgradient methods for nondiﬀerentiable optimization, SIAM Journal on Optimization 12 (2001), no. 1, 109–138.
+
+[Nes04]
+
+Y. Nesterov, Introductory lectures on convex optimization, Kluwer Academic Publishers, 2004.
+
+[Nes09]
+
+, Primal-dual subgradient methods for convex problems, Mathematical Programming A 120 (2009), no. 1, 261–283.
+
+[NO09]
+
+A. Nedi´c and A. Ozdaglar, Distributed subgradient methods for multi-agent optimization, IEEE Transactions on Automatic Control 54 (2009), 48–61.
+
+[NOOT09] A. Nedi´c, A. Olshevsky, A. Ozdaglar, and J. N. Tsitsiklis, On distributed averaging algorithms and quantization eﬀects, IEEE Transactions on Automatic Control 54 (2009), no. 11, 2506 –2517.
+
+[NY83]
+
+A. Nemirovski and D. Yudin, Problem complexity and method eﬃciency in optimization, Wiley, New York, 1983.
+
+[Pen03] M. Penrose, Random Geometric Graphs, Oxford University Press, 2003.
+
+[RN04]
+
+M. Rabbat and R. Nowak, Distributed optimization in sensor networks, The 3rd International Symposium on Information Processing in Sensor Networks, 2004, pp. 20–27.
+
+[RNV10] S. S. Ram, A. Nedi´c, and V. V. Veeravalli, Distributed stochastic subgradient projection algorithms for convex optimization, Journal of Optimization Theory and Applications 147 (2010), no. 3, 516–545.
+
+[TBA86]
+
+J. N. Tsitsiklis, D. P. Bertsekas, and M. Athans, Distributed asynchronous deterministic and stochastic gradient optimization algorithms, IEEE Transactions on Automatic Control 31 (1986), 803–812.
+
+[Tsi84]
+
+J. Tsitsiklis, Problems in decentralized decision making and computation, Ph.D. thesis, Massachusetts Institute of Technology, 1984.
+
+[vLRH10] U. von Luxburg, A. Radl, and M. Hein, Hitting times, commute distances, and the spectral gap for large random geometric graphs, 2010.
+
+[XBK07] L. Xiao, S. Boyd, and S. J. Kim, Distributed average consensus with least-mean-square deviation, Journal of Parallel and Distributed Computing 67 (2007), no. 1, 33–46.
+
+[Xia10]
+
+L. Xiao, Dual averaging methods for regularized stochastic learning and online optimization, Journal of Machine Learning Research 11 (2010), 2543–2596.
+
+40
+
